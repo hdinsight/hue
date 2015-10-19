@@ -28,6 +28,7 @@ object LivyConf {
   val SPARK_HOME_KEY = "livy.server.spark-home"
   val SPARK_SUBMIT_KEY = "livy.server.spark-submit"
   val IMPERSONATION_ENABLED_KEY = "livy.impersonation.enabled"
+  val YARN_FS = "livy.yarn.fs"
 
   sealed trait SessionKind
   case class Process() extends SessionKind
@@ -115,6 +116,6 @@ class LivyConf(loadDefaults: Boolean) {
   /** Return the filesystem root. Defaults to the local filesystem. */
   def filesystemRoot(): String = sessionKind() match {
     case Process() => "file://"
-    case Yarn() => "hdfs://"
+    case Yarn() => getOption(YARN_FS).getOrElse("hdfs://")
   }
 }
