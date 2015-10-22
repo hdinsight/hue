@@ -256,6 +256,8 @@ def field_values_from_separated_file(fh, delimiter, quote_character, fields=None
 
     remove_keys = None
     for row in reader:
+      row = dict([(force_unicode(k), force_unicode(v, errors='ignore')) for k, v in row.iteritems()]) # Get rid of invalid binary chars and convert to unicode from DictReader
+
       # Remove keys that aren't in collection
       if remove_keys is None:
         if field_names is None:

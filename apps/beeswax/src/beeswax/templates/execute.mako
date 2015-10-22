@@ -218,7 +218,7 @@ ${ layout.menubar(section='query') }
       % endif
     </div>
   </div>
-  <div class="resizer" data-bind="splitDraggable : { appName: '${app_name}', onPosition: onPanelPosition }"><div class="resize-bar"><i class="fa fa-ellipsis-v"></i></div></div>
+  <div class="resizer" data-bind="splitDraggable : { appName: '${app_name}', onPosition: onPanelPosition, leftPanelVisible: isEditor }"><div class="resize-bar"><i class="fa fa-ellipsis-v"></i></div></div>
   <div class="right-panel" id="querySide">
     <div class="alert" data-bind="visible: design.isRedacted">
       ${ _('This query had some sensitive information removed when saved.') }
@@ -615,16 +615,16 @@ ${ layout.menubar(section='query') }
     <form class="form-horizontal">
       <div class="control-group" id="saveas-query-name">
         <label class="control-label">${_('Name')}</label>
-
         <div class="controls">
           <input data-bind="value: $root.design.name, html" type="text" class="input-xlarge">
+          <span class="help-inline"></span>
         </div>
       </div>
-      <div class="control-group">
+      <div class="control-group" id="saveas-query-description">
         <label class="control-label">${_('Description')}</label>
-
         <div class="controls">
           <input data-bind="value: $root.design.description, html" type="text" class="input-xlarge">
+          <span class="help-inline"></span>
         </div>
       </div>
     </form>
@@ -786,8 +786,10 @@ ${ commonshare() | n,unicode }
 <script src="${ static('desktop/ext/js/knockout.min.js') }" type="text/javascript" charset="utf-8"></script>
 <script src="${ static('desktop/ext/js/knockout-mapping.min.js') }" type="text/javascript" charset="utf-8"></script>
 <script src="${ static('desktop/js/ko.hue-bindings.js') }" type="text/javascript" charset="utf-8"></script>
+<script src="${ static('desktop/js/sqlAutocompleter.js') }" type="text/javascript" charset="utf-8"></script>
+<script src="${ static('desktop/js/hdfsAutocompleter.js') }" type="text/javascript" charset="utf-8"></script>
 <script src="${ static('desktop/js/assistHelper.js') }" type="text/javascript" charset="utf-8"></script>
-<script src="${ static('desktop/js/autocomplete.js') }" type="text/javascript" charset="utf-8"></script>
+<script src="${ static('desktop/js/autocompleter.js') }" type="text/javascript" charset="utf-8"></script>
 <script src="${ static('notebook/js/notebook.ko.js') }" type="text/javascript" charset="utf-8"></script>
 <script src="${ static('beeswax/js/beeswax.vm.js') }"></script>
 <script src="${ static('desktop/js/share.vm.js') }"></script>
@@ -1008,22 +1010,6 @@ ${ koComponents.assistPanel() }
     margin: 0;
   }
 
-  .jobs-overlay {
-    background-color: #FFF;
-    opacity: 0.8;
-    position: absolute;
-    top: 10px;
-    right: 15px;
-  }
-
-  .jobs-overlay li {
-    padding: 5px;
-  }
-
-  .jobs-overlay:hover {
-    opacity: 1;
-  }
-
   #saveResultsModal .overlay {
     background: black; opacity: 0.5;
     position: absolute;
@@ -1123,9 +1109,8 @@ var notebook = editorViewModel.newNotebook();
 var snippet = notebook.newSnippet(snippetType);
 var assistHelper = snippet.getAssistHelper();
 var autocompleter = new Autocompleter({
-  assistHelper: assistHelper,
-  notebook: notebook,
-  snippet: snippet
+  snippet: snippet,
+  user: HIVE_AUTOCOMPLETE_USER
 });
 
 var escapeOutput = function (str) {
@@ -2075,6 +2060,7 @@ function clearErrorWidgets() {
 }
 
 $(document).on('execute.query', clearErrorWidgets);
+$(document).on('explain.query', clearErrorWidgets);
 
 $(document).on('error.query', function () {
   $.each(errorWidgets, function(index, el) {
@@ -2100,6 +2086,10 @@ $(document).on('error.query', function () {
           }
         )
       );
+      codeMirror.scrollTo(null, codeMirror.charCoords({
+            line: selectedLine > 0 ? selectedLine - 1 : selectedLine,
+            ch: 0
+          }, "local").top - codeMirror.getScrollerElement().offsetHeight / 2 - 5);
       $(el).hide();
     }
   });
@@ -2128,8 +2118,8 @@ function trySaveAsDesign() {
   if (viewModel.design.query.value() && viewModel.design.name()) {
     viewModel.design.id(-1);
     viewModel.saveDesign();
-    $('#saveas-query-name').removeClass('error');
-    $('#saveAs').modal('hide');
+    $('#saveAs').find('.help-inline').text('');
+    $('#saveAs').find('.control-group').removeClass('error');
     logGA('design/save-as');
   } else if (viewModel.design.name()) {
     $.jHueNotify.error("${_('No query provided to save.')}");
@@ -2253,15 +2243,43 @@ $(document).on('server.unmanageable_error', function (e, responseText) {
 
 // Other
 $(document).on('saved.design', function (e, id) {
+  $('#saveAs').modal('hide');
   $(document).trigger('info', "${_('Query saved.')}");
   window.location.href = "/${ app_name }/execute/design/" + id;
 });
 $(document).on('error_save.design', function (e, message) {
   var _message = "${_('Could not save design')}";
-  if (message) {
-    _message += ": " + message;
+  if (typeof message == "object"){
+    $('#saveAs').find('.help-inline').text('');
+    $('#saveAs').find('.control-group').removeClass('error');
+    if (message.saveform){
+      if ($('#saveAs').is(":visible")){
+        if (message.saveform.name){
+          $('#saveas-query-name').addClass('error');
+          $('#saveas-query-name').find('.help-inline').text(message.saveform.name.join(' '));
+        }
+        if (message.saveform.description) {
+          $('#saveas-query-description').addClass('error');
+          $('#saveas-query-name').find('.help-inline').text(message.saveform.description.join(' '));
+        }
+      }
+      else {
+        if (message.saveform.name) {
+          _message += " - ${_('Name')}: " + message.saveform.name.join(' ');
+        }
+        if (message.saveform.description) {
+          _message += " - ${_('Description')}: " + message.saveform.description.join(' ');
+        }
+        $(document).trigger('error', _message);
+      }
+    }
   }
-  $(document).trigger('error', _message);
+  else {
+    if (message) {
+      _message += ": " + message;
+    }
+    $(document).trigger('error', _message);
+  }
 });
 $(document).on('error_save.results', function (e, message) {
   var _message = "${_('Could not save results')}";
@@ -2430,6 +2448,7 @@ $(document).ready(function () {
 
   function watchPageComponents() {
     $('#advanced-settings').hide();
+    viewModel.isEditor(false);
     $('#navigator').hide();
     $('#queryContainer').hide();
     $('#resizePanel').hide();
@@ -2660,7 +2679,6 @@ viewModel.design.fileResources.values.subscribe(function() {
   $(".fileChooser:not(:has(~ button))").after(getFileBrowseButton($(".fileChooser:not(:has(~ button))")));
 });
 
-
 % if action == 'watch-results':
   $(document).ready(watchEvents);
   $(document).one('fetched.query', function(e) {
@@ -2674,7 +2692,13 @@ viewModel.design.fileResources.values.subscribe(function() {
     cacheQueryTextEvents();
   });
   $(document).on('stop_watch.query', function(e) {
-    if (viewModel.design.results.errors().length == 0) {
+    var successUrl = "${request.GET['on_success_url']}";
+    if (viewModel.design.watch.errors().length != 0) {
+      window.setTimeout(function(){
+        window.location.href = successUrl + (successUrl.indexOf("?") > -1 ? "&" : "?") + "error=" + encodeURIComponent(viewModel.design.watch.errors().join("\n"));
+      }, 200);
+    }
+    else if (viewModel.design.results.errors().length == 0) {
       window.setTimeout(function(){
         window.location.href = "${request.GET['on_success_url']}";
       }, 200);

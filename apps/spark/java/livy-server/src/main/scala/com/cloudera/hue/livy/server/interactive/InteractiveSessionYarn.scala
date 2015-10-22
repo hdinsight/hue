@@ -57,6 +57,8 @@ object InteractiveSessionYarn {
     createInteractiveRequest.jars.map(RelativePath).foreach(builder.jar)
     createInteractiveRequest.proxyUser.foreach(builder.proxyUser)
     createInteractiveRequest.pyFiles.map(RelativePath).foreach(builder.pyFile)
+    createInteractiveRequest.queue.foreach(builder.queue)
+    createInteractiveRequest.name.foreach(builder.name)
 
     val kind = createInteractiveRequest.kind.toString
 

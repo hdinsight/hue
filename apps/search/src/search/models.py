@@ -481,6 +481,8 @@ class Collection2(object):
         'to': 'NOW',
         'truncate': True
       }
+    if 'suggest' not in props['collection']:
+      props['collection']['suggest'] = {'enabled': False, 'dictionary': ''}
 
     for facet in props['collection']['facets']:
       properties = facet['properties']
@@ -802,18 +804,18 @@ def augment_solr_response(response, collection, query):
       response.pop('facets')
 
   # HTML escaping
-  for doc in response['response']['docs']:
-    for field, value in doc.iteritems():
-      if isinstance(value, numbers.Number):
-        escaped_value = value
-      elif isinstance(value, list): # Multivalue field
-        escaped_value = [smart_unicode(val, errors='replace') for val in value]
-      else:
-        value = smart_unicode(value, errors='replace')
-        escaped_value = escape(value)
-      doc[field] = escaped_value
+  if not query.get('download'):
+    for doc in response['response']['docs']:
+      for field, value in doc.iteritems():
+        if isinstance(value, numbers.Number):
+          escaped_value = value
+        elif isinstance(value, list): # Multivalue field
+          escaped_value = [smart_unicode(val, errors='replace') for val in value]
+        else:
+          value = smart_unicode(value, errors='replace')
+          escaped_value = escape(value)
+        doc[field] = escaped_value
 
-    if not query.get('download'):
       link = None
       if 'link-meta' in doc:
         meta = json.loads(doc['link-meta'])

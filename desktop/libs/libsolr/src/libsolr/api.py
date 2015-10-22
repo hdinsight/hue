@@ -18,6 +18,7 @@
 
 import json
 import logging
+import re
 import urllib
 
 from itertools import groupby
@@ -31,7 +32,8 @@ from desktop.lib.rest import resource
 
 from search.conf import EMPTY_QUERY, SECURITY_ENABLED
 from search.api import _compute_range_facet
-import re
+
+from libsolr.conf import SSL_CERT_CA_VERIFY
 
 
 LOG = logging.getLogger(__name__)
@@ -47,7 +49,7 @@ class SolrApi(object):
   """
   http://wiki.apache.org/solr/CoreAdmin#CoreAdminHandler
   """
-  def __init__(self, solr_url, user, security_enabled=SECURITY_ENABLED.get()):
+  def __init__(self, solr_url, user, security_enabled=SECURITY_ENABLED.get(), ssl_cert_ca_verify=SSL_CERT_CA_VERIFY.get()):
     self._url = solr_url
     self._user = user
     self._client = HttpClient(self._url, logger=LOG)
@@ -55,6 +57,8 @@ class SolrApi(object):
 
     if self.security_enabled:
       self._client.set_kerberos_auth()
+
+    self._client.set_verify(ssl_cert_ca_verify)
 
     self._root = resource.Resource(self._client)
 
@@ -415,13 +419,19 @@ class SolrApi(object):
     return self._get_json(response)
 
 
-  def suggest(self, solr_query, hue_core):
+  def suggest(self, collection, query):
     try:
       params = self._get_params() + (
-          ('q', solr_query['q']),
+          ('suggest', 'true'),
+          ('suggest.build', 'true'),
+          ('suggest.q', query['q']),
           ('wt', 'json'),
       )
-      response = self._root.get('%(collection)s/suggest' % solr_query, params)
+      if query.get('dictionary'):
+        params += (
+            ('suggest.dictionary', query['dictionary']),
+        )
+      response = self._root.get('%s/suggest' % collection, params)
       return self._get_json(response)
     except RestException, e:
       raise PopupException(e, title=_('Error while accessing Solr'))

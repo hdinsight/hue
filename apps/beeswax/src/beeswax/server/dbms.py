@@ -36,12 +36,16 @@ from beeswax.design import hql_query
 from beeswax.hive_site import hiveserver2_use_ssl
 from beeswax.models import QueryHistory, QUERY_TYPES
 
-
 LOG = logging.getLogger(__name__)
+
+try:
+  from impala.dbms import ImpalaDbms 
+except ImportError, e:
+  LOG.info('Impala app enabled: %s' % e)
+
 
 DBMS_CACHE = {}
 DBMS_CACHE_LOCK = threading.Lock()
-
 
 def get(user, query_server=None):
   global DBMS_CACHE
@@ -149,7 +153,6 @@ class HiveServer2Dbms(object):
       cleaned = "*%s*" % identifier.strip().strip("*")
     return cleaned
 
-
   def get_databases(self, database_names='*'):
     identifier = self.to_matching_wildcard(database_names)
 
@@ -214,7 +217,6 @@ class HiveServer2Dbms(object):
         return col
     return None
 
-
   def execute_query(self, query, design):
     return self.execute_and_watch(query, design=design)
 
@@ -258,22 +260,34 @@ class HiveServer2Dbms(object):
     return resp
 
 
-  def get_sample(self, database, table):
-    """No samples if it's a view (HUE-526)"""
-    if not table.is_view:
-      limit = min(100, BROWSE_PARTITIONED_TABLE_LIMIT.get())
-      partition_query = ""
-      if table.partition_keys:
-        partitions = self.get_partitions(database, table, partition_spec=None, max_parts=1)
-        partition_query = 'WHERE ' + ' AND '.join(["%s='%s'" % (table.partition_keys[idx].name, key) for idx, key in enumerate(partitions[0].values)])
-      hql = "SELECT * FROM `%s`.`%s` %s LIMIT %s" % (database, table.name, partition_query, limit)
-      query = hql_query(hql)
-      handle = self.execute_and_wait(query, timeout_sec=5.0)
+  def get_sample(self, database, table, column=None, nested=None):
+    result = None
+    hql = None
 
-      if handle:
-        result = self.fetch(handle, rows=100)
-        self.close(handle)
-        return result
+    if not table.is_view:
+
+      limit = min(100, BROWSE_PARTITIONED_TABLE_LIMIT.get())
+
+      if column or nested: # Could do column for any type, then nested with partitions 
+        if self.server_name == 'impala':
+          select_clause, from_clause = ImpalaDbms.get_nested_select(database, table.name, column, nested)
+          hql = 'SELECT %s FROM %s LIMIT %s' % (select_clause, from_clause, limit)
+      else:
+        partition_query = ""
+        if table.partition_keys:
+          partitions = self.get_partitions(database, table, partition_spec=None, max_parts=1)
+          partition_query = 'WHERE ' + ' AND '.join(["%s='%s'" % (table.partition_keys[idx].name, key) for idx, key in enumerate(partitions[0].values)])
+        hql = "SELECT * FROM `%s`.`%s` %s LIMIT %s" % (database, table.name, partition_query, limit)
+
+      if hql:
+        query = hql_query(hql)
+        handle = self.execute_and_wait(query, timeout_sec=5.0)
+
+        if handle:
+          result = self.fetch(handle, rows=100)
+          self.close(handle)
+
+    return result
 
 
   def analyze_table(self, database, table):
@@ -684,6 +698,19 @@ class HiveServer2Dbms(object):
 
   def describe_partition(self, db_name, table_name, partition_spec):
     return self.client.get_table(db_name, table_name, partition_spec=partition_spec)
+
+
+  def drop_partitions(self, db_name, table_name, partition_specs, design):
+    hql = []
+
+    for partition_spec in partition_specs:
+        hql.append("ALTER TABLE `%s`.`%s` DROP IF EXISTS PARTITION (%s) PURGE" % (db_name, table_name, partition_spec))
+
+    query = hql_query(';'.join(hql), db_name)
+    design.data = query.dumps()
+    design.save()
+
+    return self.execute_query(query, design)
 
 
   def explain(self, query):

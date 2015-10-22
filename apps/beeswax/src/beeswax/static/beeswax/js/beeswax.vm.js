@@ -90,6 +90,8 @@ function BeeswaxViewModel(server, assistHelper) {
 
   self.impalaSessionLink = ko.observable("");
 
+  self.isEditor = ko.observable(true);
+
   self.chartType = ko.observable("bars");
   self.chartSorting = ko.observable("none");
   self.chartData = ko.observableArray();
@@ -652,12 +654,15 @@ function BeeswaxViewModel(server, assistHelper) {
           }
           if (! failed) {
             $(document).trigger('stop_watch.query');
-
             if (fn) {
               fn(data);
             } else {
               self.fetchResults();
             }
+          }
+          else {
+            self.design.watch.errors.push(data.message);
+            $(document).trigger('stop_watch.query');
           }
         } else {
           self.design.statement(data.statement); // In case new no result statement executed
@@ -768,7 +773,7 @@ function BeeswaxViewModel(server, assistHelper) {
             $(document).trigger('saved.design', [data.design_id]);
           } else {
             self.setErrors("", data.errors);
-            $(document).trigger('error_save.design', [data.message]);
+            $(document).trigger('error_save.design', [data.message ? data.message : data.errors]);
           }
         },
         error: function() {

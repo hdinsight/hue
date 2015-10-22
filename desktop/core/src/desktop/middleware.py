@@ -27,12 +27,11 @@ import time
 
 import kerberos
 
-from datetime import datetime
-
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import REDIRECT_FIELD_NAME, BACKEND_SESSION_KEY, authenticate, load_backend, login
 from django.contrib.auth.middleware import RemoteUserMiddleware
+from django.contrib.auth.models import User
 from django.core import exceptions, urlresolvers
 import django.db
 from django.http import HttpResponseNotAllowed
@@ -40,14 +39,13 @@ from django.core.urlresolvers import resolve
 from django.http import HttpResponseRedirect, HttpResponse
 from django.utils.translation import ugettext as _
 from django.utils.http import urlquote, is_safe_url
-from django.utils.encoding import iri_to_uri
 import django.views.static
 
 import desktop.views
 import desktop.conf
 from desktop.context_processors import get_app_name
-from desktop.lib import apputil, i18n
-from desktop.lib.django_util import render, render_json, is_jframe_request, get_username_re_rule, get_groupname_re_rule
+from desktop.lib import apputil, i18n, fsmanager
+from desktop.lib.django_util import render, render_json, get_username_re_rule, get_groupname_re_rule
 from desktop.lib.exceptions import StructuredException
 from desktop.lib.exceptions_renderable import PopupException
 from desktop.log.access import access_log, log_page_hit
@@ -121,10 +119,7 @@ class ClusterMiddleware(object):
     if "fs" in view_kwargs:
       del view_kwargs["fs"]
 
-    try:
-      request.fs = cluster.get_hdfs(request.fs_ref)
-    except KeyError:
-      raise KeyError(_('Cannot find HDFS called "%(fs_ref)s".') % {'fs_ref': request.fs_ref})
+    request.fs = fsmanager.get_filesystem(request.fs_ref)
 
     if request.user.is_authenticated():
       if request.fs is not None:
@@ -363,6 +358,8 @@ class AuditLoggingMiddleware(object):
     '/useradmin/groups/edit/(?P<name>%s)' % (groupname_re,): 'EDIT_GROUP'
   }
 
+  process_view_operations = ('USER_LOGOUT', 'DELETE_USER')
+
   def __init__(self):
     from desktop.conf import AUDIT_EVENT_LOG_DIR, SERVER_USER
 
@@ -375,7 +372,7 @@ class AuditLoggingMiddleware(object):
   def process_view(self, request, view_func, view_args, view_kwargs):
     try:
       operation = self._get_operation(request.path)
-      if operation == 'USER_LOGOUT':
+      if operation in self.process_view_operations:
         self._log_message(operation, request)
     except Exception, e:
       LOG.error('Could not audit the request: %s' % e)
@@ -386,7 +383,7 @@ class AuditLoggingMiddleware(object):
     response['audited'] = False
     try:
       operation = self._get_operation(request.path)
-      if request.method == 'POST' and operation and operation != 'USER_LOGOUT':
+      if request.method == 'POST' and operation not in self.process_view_operations:
         self._log_message(operation, request, response)
         response['audited'] = True
     except Exception, e:
@@ -401,6 +398,7 @@ class AuditLoggingMiddleware(object):
       'impersonator': self.impersonator,
       'ipAddress': self._get_client_ip(request),
       'operation': operation,
+      'operationText': self._get_operation_text(operation, request),
       'eventTime': self._milliseconds_since_epoch(),
       'allowed': self._get_allowed(operation, request, response),
       'service': get_app_name(request),
@@ -449,7 +447,35 @@ class AuditLoggingMiddleware(object):
         if pattern.match(url):
           return operation
 
-    return None
+    return ''
+
+  def _get_operation_text(self, operation, request):
+    if request.method == 'POST':
+      if operation == 'CREATE_USER':
+        return 'Created User with username: %s' % request.POST.get('username', '')
+      elif operation == 'EDIT_USER':
+        return 'Edited User with username: %s' % request.POST.get('username', '')
+      elif operation == 'DELETE_USER':
+        usernames = self._get_usernames(request.POST.getlist('user_ids', []))
+        return 'Deleted User ID(s): %s' % ', '.join(usernames)
+      elif operation == 'ADD_LDAP_USERS':
+        return 'Added/Synced LDAP username(s): %s' % ', '.join(request.POST.getlist('username_pattern', []))
+      elif operation == 'CREATE_GROUP':
+        usernames = self._get_usernames(request.POST.getlist('members', []))
+        return 'Created Group: %s, with member(s): %s' % (request.POST.get('name', ''), ', '.join(usernames))
+      elif operation == 'EDIT_GROUP':
+        usernames = self._get_usernames(request.POST.getlist('members', []))
+        return 'Edited Group: %s, with member(s): %s' % (request.POST.get('name', ''), ', '.join(usernames))
+      elif operation == 'DELETE_GROUP':
+        return 'Deleted Group(s): %s' % ', '.join(request.POST.getlist('group_names', []))
+      elif operation == 'ADD_LDAP_GROUPS':
+        return 'Added LDAP Group(s): %s' % ', '.join(request.POST.getlist('groupname_pattern', []))
+
+    return ''
+
+  def _get_usernames(self, user_ids):
+    return User.objects.filter(pk__in=user_ids).values_list('username', flat=True)
+
 
 try:
   import tidylib

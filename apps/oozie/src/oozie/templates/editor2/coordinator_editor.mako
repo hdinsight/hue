@@ -121,9 +121,6 @@ ${ layout.menubar(section='coordinators', is_editor=True, pullright=buttons) }
       </div>
 
       <div class="card card-home" data-bind="visible: coordinator.properties.workflow" style="margin-top: 20px">
-        <div class="alert alert-warning pull-right" style="border: none">
-          ${ _('UTC time only. (e.g. if you want 10pm PST (UTC+8) set it 8 hours later to 6am the next day.') }
-        </div>
         <h1 class="card-heading simple">${ _('How often?') }
         </h1>
 
@@ -140,7 +137,7 @@ ${ layout.menubar(section='coordinators', is_editor=True, pullright=buttons) }
                 <div class="control-group" data-bind="visible: coordinator.properties.cron_advanced">
                   <label class="control-label">${ _('Crontab') }</label>
                   <div class="controls">
-                    <input id="coord-frequency" type="text" data-bind="value: coordinator.properties.cron_frequency" name="cron_frequency"/>
+                    <input id="coord-frequency" type="text" data-bind="value: coordinator.properties.cron_frequency, enable: $root.isEditing" name="cron_frequency"/>
                     <span class="help-inline">
                       <a data-bind="visible: coordinator.properties.cron_advanced" href="http://quartz-scheduler.org/api/2.2.0/org/quartz/CronExpression.html" target="_blank">
                       <i class="fa fa-question-circle" title="${ _('Check syntax ?') }"></i></a>
@@ -167,8 +164,16 @@ ${ layout.menubar(section='coordinators', is_editor=True, pullright=buttons) }
               <div class="control-group">
                 <div class="controls">
                   <label class="checkbox" style="display: inline-block; margin-top: 5px">
-                    <input type="checkbox" name="coordinator.properties.cron_advanced" data-bind="checked: coordinator.properties.cron_advanced" /> ${ _('Advanced syntax') }
+                    <input type="checkbox" name="coordinator.properties.cron_advanced" data-bind="checked: coordinator.properties.cron_advanced, enable: $root.isEditing" /> ${ _('Advanced syntax') }
                   </label>
+                </div>
+              </div>
+
+              <div class="control-group" style="margin-bottom: 20">
+                <label class="control-label">${ _('Timezone') }</label>
+                <div class="controls">
+                  <select data-bind="options: $root.availableTimezones, select2: { placeholder: '${ _ko("Select a Timezone") }', update: coordinator.properties.timezone, readonly: !$root.isEditing()}" style="width: 180px"></select>
+                  <span class="help-inline"></span>
                 </div>
               </div>
 
@@ -179,13 +184,13 @@ ${ layout.menubar(section='coordinators', is_editor=True, pullright=buttons) }
                     <span class="add-on input-group-addon">
                       <i class="fa fa-calendar"></i>
                     </span>
-                    <input type="text" class="input-small" data-bind="value: coordinator.properties.startDateUI, datepicker: {}" />
+                    <input type="text" class="input-small" data-bind="value: coordinator.properties.startDateUI, datepicker: {}, enable: $root.isEditing" />
                   </div>
                   <div class="input-prepend input-group">
                     <span class="add-on input-group-addon">
                       <i class="fa fa-clock-o"></i>
                     </span>
-                    <input type="text" class="input-mini" data-bind="value: coordinator.properties.startTimeUI, timepicker: {}" />
+                    <input type="text" class="input-mini" data-bind="value: coordinator.properties.startTimeUI, timepicker: {}, enable: $root.isEditing" />
                   </div>
                   <span class="help-inline"></span>
                 </div>
@@ -197,21 +202,14 @@ ${ layout.menubar(section='coordinators', is_editor=True, pullright=buttons) }
                     <span class="add-on input-group-addon">
                       <i class="fa fa-calendar"></i>
                     </span>
-                    <input type="text" class="input-small" data-bind="value: coordinator.properties.endDateUI, datepicker: {}" />
+                    <input type="text" class="input-small" data-bind="value: coordinator.properties.endDateUI, datepicker: {}, enable: $root.isEditing" />
                   </div>
                   <div class="input-prepend input-group">
                     <span class="add-on input-group-addon">
                       <i class="fa fa-clock-o"></i>
                     </span>
-                    <input type="text" class="input-mini" data-bind="value: coordinator.properties.endTimeUI, timepicker: {}" />
+                    <input type="text" class="input-mini" data-bind="value: coordinator.properties.endTimeUI, timepicker: {}, enable: $root.isEditing" />
                   </div>
-                  <span class="help-inline"></span>
-                </div>
-              </div>
-              <div class="control-group" style="margin-bottom: 0">
-                <label class="control-label">${ _('Timezone') }</label>
-                <div class="controls">
-                  <select data-bind="options: $root.availableTimezones, select2: { placeholder: '${ _ko("Select a Timezone") }', update: coordinator.properties.timezone}" style="width: 180px"></select>
                   <span class="help-inline"></span>
                 </div>
               </div>
@@ -233,9 +231,7 @@ ${ layout.menubar(section='coordinators', is_editor=True, pullright=buttons) }
 
           <ul data-bind="foreach: coordinator.variables, visible: coordinator.variables().length > 0" class="unstyled">
             <li style="margin-bottom: 10px">
-              <select data-bind="options: $parent.coordinator.workflowParameters, optionsText: 'name', optionsValue: 'name', select2: { placeholder: '${ _ko("Select a parameter") }', update: workflow_variable, type: 'parameter'}, visible: $root.isEditing" style="width: 250px"></select>
-
-              <div class="pull-left" style="width: 130px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; line-height: 30px;" data-bind="text: workflow_variable, visible: ! $root.isEditing(), attr:{'title': workflow_variable}"></div>
+              <select data-bind="options: $parent.coordinator.workflowParameters, optionsText: 'name', optionsValue: 'name', select2: { placeholder: '${ _ko("Select a parameter") }', update: workflow_variable, type: 'parameter', readonly: !$root.isEditing()}" style="width: 250px"></select>
 
               &nbsp;&nbsp;
 
@@ -517,6 +513,8 @@ ${ layout.menubar(section='coordinators', is_editor=True, pullright=buttons) }
 <script src="${ static('desktop/js/jqCron.js') }" type="text/javascript"></script>
 
 <script src="${ static('desktop/ext/js/moment-with-locales.min.js') }" type="text/javascript" charset="utf-8"></script>
+<script src="${ static('desktop/ext/js/moment-timezone-with-data.min.js') }" type="text/javascript" charset="utf-8"></script>
+<script src="${ static('desktop/ext/js/tzdetect.js') }" type="text/javascript" charset="utf-8"></script>
 
 <link rel="stylesheet" href="${ static('desktop/ext/select2/select2.css') }">
 <script src="${ static('desktop/ext/select2/select2.min.js') }" type="text/javascript" charset="utf-8"></script>

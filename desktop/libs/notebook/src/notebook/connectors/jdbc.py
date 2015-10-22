@@ -50,18 +50,21 @@ def query_error_handler(func):
 
 class JdbcApi(Api):
 
-  def __init__(self, user, fs=None, jt=None, options=None):
+  def __init__(self, user, fs=None, jt=None, interpreter=None):
     global API_CACHE
-    Api.__init__(self, user, fs=fs, jt=jt, options=options)
+    Api.__init__(self, user, fs=fs, jt=jt, interpreter=interpreter)
 
     self.db = None
+    self.options = interpreter['options']
 
-    if self.options['user'] in API_CACHE:
-      self.db = API_CACHE[self.options['user']]
+    if self.cache_key in API_CACHE:
+      self.db = API_CACHE[self.cache_key]
     elif 'password' in self.options:
-      self.db = API_CACHE[self.options['user']] = Jdbc(self.options['driver'], self.options['url'], self.options['user'], self.options['password'])
+      username = self.options.get('user') or user.username
+      self.db = API_CACHE[self.cache_key] = Jdbc(self.options['driver'], self.options['url'], username, self.options['password'])
 
   def create_session(self, lang=None, properties=None):
+    global API_CACHE
     props = super(JdbcApi, self).create_session(lang, properties)
 
     properties = dict([(p['name'], p['value']) for p in properties]) if properties is not None else {}
@@ -71,7 +74,7 @@ class JdbcApi(Api):
       if 'password' in properties:
         user = properties.get('user') or self.options.get('user')
         props['properties'] = {'user': user}
-        self.db = API_CACHE[user] = Jdbc(self.options['driver'], self.options['url'], user, properties.pop('password'))
+        self.db = API_CACHE[self.cache_key] = Jdbc(self.options['driver'], self.options['url'], user, properties.pop('password'))
 
     if self.db is None:
       raise AuthenticationRequired()
@@ -83,7 +86,7 @@ class JdbcApi(Api):
     if self.db is None:
       raise AuthenticationRequired()
 
-    data, description = query_and_fetch(self.db, snippet['statement'], 100)
+    data, description = query_and_fetch(self.db, snippet['statement'], 1000)
     has_result_set = data is not None
 
     return {
@@ -128,6 +131,9 @@ class JdbcApi(Api):
 
   @query_error_handler
   def autocomplete(self, snippet, database=None, table=None, column=None, nested=None):
+    if self.db is None:
+      raise AuthenticationRequired()
+
     assist = Assist(self.db)
     response = {'error': 0}
 
@@ -148,9 +154,13 @@ class JdbcApi(Api):
     except Exception, e:
       LOG.warn('Autocomplete data fetching error: %s' % e)
       response['code'] = -1
-      response['error'] = e.message
+      response['error'] = str(e)
 
     return response
+
+  @property
+  def cache_key(self):
+    return '%s-%s' % (self.interpreter['name'], self.user.username)
 
 
 class Assist():

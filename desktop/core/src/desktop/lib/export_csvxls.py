@@ -14,12 +14,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import StringIO
 """
 Common library to export either CSV or XLS.
 """
 import gc
 import logging
 import tablib
+import openpyxl
 
 from django.http import StreamingHttpResponse
 from django.utils.encoding import smart_str
@@ -28,7 +30,7 @@ from desktop.lib import i18n
 
 LOG = logging.getLogger(__name__)
 MAX_XLS_ROWS = 30000
-MAX_XLS_COLS = 255
+MAX_XLS_COLS = 5000
 
 
 def nullify(cell):
@@ -52,6 +54,30 @@ def dataset(headers, data, encoding=None):
     dataset.append(format(row, encoding))
 
   return dataset
+
+
+class XlsWrapper():
+  def __init__(self, xls):
+    self.xls = xls
+
+
+def xls_dataset(headers, data, encoding=None):
+  output = StringIO.StringIO()
+
+  workbook = openpyxl.Workbook(write_only=False)
+  worksheet = workbook.active
+
+  if headers:
+    worksheet.append(format(headers, encoding))
+
+  for row in data:
+    worksheet.append(format(row, encoding))
+
+  workbook.save(output)
+
+  output.seek(0)
+
+  return XlsWrapper(output.read())
 
 
 def create_generator(content_generator, format, encoding=None):
@@ -83,7 +109,7 @@ def create_generator(content_generator, format, encoding=None):
     if len(data) > MAX_XLS_ROWS:
       data = data[:MAX_XLS_ROWS]
 
-    yield dataset(headers, data, encoding).xls
+    yield xls_dataset(headers, data, encoding).xls
     gc.collect()
 
 
@@ -97,7 +123,8 @@ def make_response(generator, format, name, encoding=None):
   if format == 'csv':
     content_type = 'application/csv'
   elif format == 'xls':
-    content_type = 'application/xls'
+    content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    format = 'xlsx'
   elif format == 'json':
     content_type = 'application/json'
   else:

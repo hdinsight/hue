@@ -24,7 +24,6 @@ import os
 import re
 import shutil
 import socket
-import tablib
 import tempfile
 import threading
 
@@ -40,16 +39,23 @@ from django.core.urlresolvers import reverse
 from django.db import transaction
 
 from desktop.lib.exceptions_renderable import PopupException
-from desktop.conf import AUTH_USERNAME as DEFAULT_AUTH_USERNAME, AUTH_PASSWORD as DEFAULT_AUTH_PASSWORD, LDAP_USERNAME, LDAP_PASSWORD
+from desktop.conf import \
+    AUTH_USERNAME as DEFAULT_AUTH_USERNAME, \
+    AUTH_PASSWORD as DEFAULT_AUTH_PASSWORD, \
+    AUTH_PASSWORD_SCRIPT as DEFAULT_AUTH_PASSWORD_SCRIPT, \
+    LDAP_USERNAME, \
+    LDAP_PASSWORD
 from desktop import redaction
 from desktop.redaction import logfilter
 from desktop.redaction.engine import RedactionPolicy, RedactionRule
 from desktop.lib.django_test_util import make_logged_in_client, assert_equal_mod_whitespace
+from desktop.lib.parameterization import substitute_variables
 from desktop.lib.test_utils import grant_access, add_to_group
 from desktop.lib.security_util import get_localhost_name
+from desktop.lib.test_export_csvxls import _read_xls_sheet_data
 from hadoop.fs.hadoopfs import Hdfs
+
 from hadoop.pseudo_hdfs4 import is_live_cluster
-from desktop.lib.parameterization import substitute_variables
 
 import desktop.conf as desktop_conf
 
@@ -749,24 +755,24 @@ for x in sys.stdin:
   def test_data_export(self):
     hql = 'SELECT * FROM `%(db)s`.`test`' % {'db': self.db_name}
     query = hql_query(hql)
-    dataset = tablib.Dataset()
 
     # Get the result in xls.
     handle = self.db.execute_and_wait(query)
-    xls_resp = download(handle, 'xls', self.db)
+    resp = download(handle, 'xls', self.db)
 
-    dataset.xls = ''.join(xls_resp.streaming_content)
+    sheet_data = _read_xls_sheet_data(resp)
     # It should have 257 lines (256 + header)
-    assert_equal(len(dataset.csv.strip('\r\n').split('\r\n')), 257, dataset.csv)
+    assert_equal(len(sheet_data), 257, sheet_data)
 
     # Get the result in csv.
     query = hql_query(hql)
     handle = self.db.execute_and_wait(query)
 
-    csv_resp = download(handle, 'csv', self.db)
-    csv_content = ''.join(csv_resp.streaming_content)
-    assert_equal(csv_content.replace('.0', ''), dataset.csv.replace('.0', ''))
+    resp = download(handle, 'csv', self.db)
+    csv_resp = ''.join(resp.streaming_content)
+    csv_data = [[int(col) if col.isdigit() else col for col in row.split(',')] for row in csv_resp.strip().split('\r\n')]
 
+    assert_equal(sheet_data, csv_data)
 
   def test_data_upload(self):
     hql = 'SELECT * FROM `%(db)s`.`test`' % {'db': self.db_name}
@@ -2830,32 +2836,63 @@ def test_auth_pass_through():
       f()
 
   # Password file specific and use common username
-  with tempfile.NamedTemporaryFile(delete=False) as pwd_file:
-    pwd_file.write('''#!/usr/bin/env bash
+  finish = []
+  finish.append(LDAP_USERNAME.set_for_testing('deprecated_default_username'))
+  finish.append(LDAP_PASSWORD.set_for_testing('deprecated_default_password'))
 
-echo "my_hue_secret"''')
-    pwd_file.flush()
-    pwd_file.close() # Closing as getting "Text file busy" otherwise
-    os.chmod(pwd_file.name, 0770)
+  finish.append(DEFAULT_AUTH_USERNAME.set_for_testing('default_username'))
+  finish.append(DEFAULT_AUTH_PASSWORD.set_for_testing(present=False))
 
-    finish = []
-    finish.append(LDAP_USERNAME.set_for_testing('deprecated_default_username'))
-    finish.append(LDAP_PASSWORD.set_for_testing('deprecated_default_password'))
+  finish.append(AUTH_USERNAME.set_for_testing(present=False))
+  finish.append(AUTH_PASSWORD.set_for_testing(present=False))
+  finish.append(AUTH_PASSWORD_SCRIPT.set_for_testing('/bin/echo "my_hue_secret"'))
 
-    finish.append(DEFAULT_AUTH_USERNAME.set_for_testing('default_username'))
-    finish.append(DEFAULT_AUTH_PASSWORD.set_for_testing(present=False))
+  try:
+    assert_equal('default_username', AUTH_USERNAME.get())
+    assert_equal('my_hue_secret', AUTH_PASSWORD.get())
+  finally:
+    for f in finish:
+      f()
 
-    finish.append(AUTH_USERNAME.set_for_testing(present=False))
-    finish.append(AUTH_PASSWORD.set_for_testing(present=False))
-    finish.append(AUTH_PASSWORD_SCRIPT.set_for_testing(pwd_file.name))
+  # Make sure global auth password script can be used.
+  finish = []
+  finish.append(LDAP_USERNAME.set_for_testing('deprecated_default_username'))
+  finish.append(LDAP_PASSWORD.set_for_testing('deprecated_default_password'))
 
-    try:
-      assert_equal('default_username', AUTH_USERNAME.get())
-      assert_equal('my_hue_secret', AUTH_PASSWORD.get())
-    finally:
-      os.remove(pwd_file.name)
-      for f in finish:
-        f()
+  finish.append(DEFAULT_AUTH_USERNAME.set_for_testing('default_username'))
+  finish.append(DEFAULT_AUTH_PASSWORD.set_for_testing(present=False))
+  finish.append(DEFAULT_AUTH_PASSWORD_SCRIPT.set_for_testing('/bin/echo "my_hue_secret"'))
+
+  finish.append(AUTH_USERNAME.set_for_testing(present=False))
+  finish.append(AUTH_PASSWORD.set_for_testing(present=False))
+  finish.append(AUTH_PASSWORD_SCRIPT.set_for_testing(present=False))
+
+  try:
+    assert_equal('default_username', AUTH_USERNAME.get())
+    assert_equal('my_hue_secret', AUTH_PASSWORD.get())
+  finally:
+    for f in finish:
+      f()
+
+  # Make sure local auth password script overrides global password.
+  finish = []
+  finish.append(LDAP_USERNAME.set_for_testing('deprecated_default_username'))
+  finish.append(LDAP_PASSWORD.set_for_testing('deprecated_default_password'))
+
+  finish.append(DEFAULT_AUTH_USERNAME.set_for_testing('default_username'))
+  finish.append(DEFAULT_AUTH_PASSWORD.set_for_testing(present=False))
+  finish.append(DEFAULT_AUTH_PASSWORD_SCRIPT.set_for_testing('/bin/echo "not_my_secret"'))
+
+  finish.append(AUTH_USERNAME.set_for_testing(present=False))
+  finish.append(AUTH_PASSWORD.set_for_testing(present=False))
+  finish.append(AUTH_PASSWORD_SCRIPT.set_for_testing('/bin/echo "my_hue_secret"'))
+
+  try:
+    assert_equal('default_username', AUTH_USERNAME.get())
+    assert_equal('my_hue_secret', AUTH_PASSWORD.get())
+  finally:
+    for f in finish:
+      f()
 
 
 def hive_site_xml(is_local=False, use_sasl=False, thrift_uris='thrift://darkside-1234:9999',

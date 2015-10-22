@@ -79,6 +79,9 @@
   # Filename of SSL RSA Private Key
   ## ssl_private_key=
 
+  # Filename of SSL Certificate Chain
+  ## ssl_certificate_chain=
+
   # SSL certificate password
   ## ssl_password=
 
@@ -577,6 +580,10 @@
       name=Text
       interface=text
 
+    [[[markdown]]]
+      name=Markdown
+      interface=text
+
     # [[[sparksql]]]
     #   name=SparkSql
     #   interface=hiveserver2
@@ -585,8 +592,13 @@
     #   name=MySql JDBC
     #   interface=jdbc
     #   ## Specific options for connecting to the server.
+    #   ## The JDBC connectors, e.g. mysql.jar, need to be in the CLASSPATH environment variable.
     #   ## If 'user' and 'password' are omitted, they will be prompted in the UI.
     #   options='{"url": "jdbc:mysql://localhost:3306/hue", "driver": "com.mysql.jdbc.Driver", "user": "root", "password": "root"}'
+
+
+  ## Main flag to override the automatic starting of the DBProxy server.
+  # enable_dbproxy_server=true
 
 
 ###########################################################################
@@ -938,6 +950,16 @@
 
 
 ###########################################################################
+# Settings to configure Solr API lib
+###########################################################################
+
+[libsolr]
+
+  # Choose whether Hue should validate certificates received from the server.
+  ## ssl_cert_ca_verify=true
+
+
+###########################################################################
 # Settings to configure Solr Indexer
 ###########################################################################
 
@@ -1025,6 +1047,26 @@
 
   # Location on HDFS where the workflows/coordinator are deployed when submitted.
   ## remote_deployement_dir=/user/hue/oozie/deployments
+
+
+###########################################################################
+# Settings for the AWS lib
+###########################################################################
+
+[aws]
+  [[aws_accounts]]
+    # Default AWS account
+    [[[default]]]
+      # AWS credentials
+      ## access_key_id=
+      ## secret_access_key=
+
+      # Allow to use either environment variables or
+      # EC2 InstanceProfile to retrieve AWS credentials.
+      ## allow_environment_credentials=yes
+
+      # AWS region to use
+      ## region=us-east-1
 
 
 ###########################################################################

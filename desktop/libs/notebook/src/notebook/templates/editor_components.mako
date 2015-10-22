@@ -21,6 +21,8 @@ from django.utils.translation import ugettext as _
 from desktop.views import _ko
 %>
 
+<%namespace name="require" file="/require.mako" />
+
 <%def name="includes()">
 <link rel="stylesheet" href="${ static('desktop/css/common_dashboard.css') }">
 <link rel="stylesheet" href="${ static('notebook/css/notebook.css') }">
@@ -39,18 +41,9 @@ from desktop.views import _ko
 <script src="${ static('desktop/ext/js/jquery/plugins/jquery.hotkeys.js') }"></script>
 
 <script src="${ static('desktop/ext/js/bootstrap-editable.min.js') }" type="text/javascript" charset="utf-8"></script>
-<script src="${ static('desktop/ext/js/jquery/plugins/jquery-ui-1.10.4.draggable-droppable-sortable.min.js') }" type="text/javascript" charset="utf-8"></script>
-<script src="${ static('desktop/ext/js/knockout.min.js') }" type="text/javascript" charset="utf-8"></script>
-<script src="${ static('desktop/ext/js/knockout-mapping.min.js') }" type="text/javascript" charset="utf-8"></script>
-<script src="${ static('desktop/ext/js/knockout-sortable.min.js') }" type="text/javascript" charset="utf-8"></script>
-<script src="${ static('desktop/ext/js/knockout-deferred-updates.min.js') }" type="text/javascript" charset="utf-8"></script>
-<script src="${ static('desktop/js/ko.editable.js') }" type="text/javascript" charset="utf-8"></script>
-<script src="${ static('desktop/js/hue.utils.js') }"></script>
-<script src="${ static('desktop/js/ko.hue-bindings.js') }" type="text/javascript" charset="utf-8"></script>
 <script src="${ static('desktop/ext/chosen/chosen.jquery.min.js') }" type="text/javascript" charset="utf-8"></script>
 
 <script src="${ static('notebook/js/assist.js') }" type="text/javascript" charset="utf-8"></script>
-<script src="${ static('notebook/js/notebook.ko.js') }" type="text/javascript" charset="utf-8"></script>
 
 <script src="${ static('desktop/js/hue.geo.js') }" type="text/javascript" charset="utf-8"></script>
 <script src="${ static('desktop/js/hue.colors.js') }" type="text/javascript" charset="utf-8"></script>
@@ -87,9 +80,6 @@ from desktop.views import _ko
 <script src="${ static('desktop/js/nv.d3.scatter.js') }" type="text/javascript" charset="utf-8"></script>
 <script src="${ static('desktop/js/nv.d3.scatterChart.js') }" type="text/javascript" charset="utf-8"></script>
 
-<script src="${ static('desktop/js/ko.charts.js') }" type="text/javascript" charset="utf-8"></script>
-<script src="${ static('desktop/js/ko.hue-bindings.js') }"> type="text/javascript" charset="utf-8"</script>
-
 <script src="${ static('desktop/ext/select2/select2.min.js') }" type="text/javascript" charset="utf-8"></script>
 
 <!--[if IE 9]>
@@ -100,8 +90,6 @@ from desktop.views import _ko
 <script src="${ static('desktop/js/ace/ace.js') }"></script>
 <script src="${ static('desktop/js/ace/ext-language_tools.js') }"></script>
 <script src="${ static('desktop/js/ace.extended.js') }"></script>
-<script src="${ static('desktop/js/assistHelper.js') }" type="text/javascript" charset="utf-8"></script>
-<script src="${ static('desktop/js/autocomplete.js') }" type="text/javascript" charset="utf-8"></script>
 
 <script type="text/x-mathjax-config">
   MathJax.Hub.Config({
@@ -110,8 +98,13 @@ from desktop.views import _ko
     TeX: { equationNumbers: {autoNumber: "AMS"} }
   });
 </script>
+
 <script type="text/javascript" src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
+<script src="${ static('desktop/js/hue.utils.js') }"></script>
+
+
+${ require.config() }
 
 </%def>
 
@@ -138,12 +131,10 @@ from desktop.views import _ko
 
 <div class="search-bar" data-bind="visible: ! $root.isPlayerMode()">
   <div class="pull-right" style="padding-right:50px">
-    <!-- ko if: $root.selectedNotebook() && $root.selectedNotebook().snippets().length > 0 -->
-    <a class="btn pointer" title="${ _('Player mode') }" rel="tooltip" data-placement="bottom" data-bind="click: function(){ $root.isEditing(false); $root.isPlayerMode(true); }">
+    <a class="btn pointer" title="${ _('Player mode') }" rel="tooltip" data-placement="bottom" data-bind="visible: $root.selectedNotebook() && $root.selectedNotebook().snippets().length > 0, click: function(){ hueUtils.goFullScreen(); $root.isEditing(false); $root.isPlayerMode(true); }" style="display:none">
       <i class="fa fa-expand"></i>
     </a>
     &nbsp;&nbsp;
-    <!-- /ko -->
     <div class="btn-group">
       <a class="btn dropdown-toggle" data-toggle="dropdown">
         <i class="fa fa-check-square-o"></i>
@@ -170,7 +161,7 @@ from desktop.views import _ko
 
    &nbsp;&nbsp;&nbsp;
 
-   <a title="${ _('Edit') }" rel="tooltip" data-placement="bottom" data-bind="click: toggleEditing, css: {'btn': true, 'btn-inverse': isEditing}">
+   <a class="btn pointer" title="${ _('Edit') }" rel="tooltip" data-placement="bottom" data-bind="click: toggleEditing, css: {'btn-inverse': isEditing}">
      <i class="fa fa-pencil"></i>
    </a>
 
@@ -180,18 +171,17 @@ from desktop.views import _ko
 
    &nbsp;&nbsp;&nbsp;
 
-   <a class="btn" title="${ _('Save') }" rel="tooltip" data-placement="bottom" data-loading-text="${ _("Saving...") }"
-      data-bind="click: saveNotebook, css: {'btn': true}">
+   <a class="btn" title="${ _('Save') }" rel="tooltip" data-placement="bottom" data-loading-text="${ _("Saving...") }" data-bind="click: saveNotebook">
      <i class="fa fa-save"></i>
    </a>
 
    &nbsp;&nbsp;&nbsp;
 
-   <a class="btn" href="${ url('notebook:new') }" title="${ _('New Notebook') }" rel="tooltip" data-placement="bottom" data-bind="css: {'btn': true}">
+   <a class="btn" href="${ url('notebook:new') }" title="${ _('New Notebook') }" rel="tooltip" data-placement="bottom">
      <i class="fa fa-file-o"></i>
    </a>
 
-   <a class="btn" href="${ url('notebook:notebooks') }" title="${ _('Notebooks') }" rel="tooltip" data-placement="bottom" data-bind="css: {'btn': true}">
+   <a class="btn" href="${ url('notebook:notebooks') }" title="${ _('Notebooks') }" rel="tooltip" data-placement="bottom">
      <i class="fa fa-tags"></i>
    </a>
   </div>
@@ -221,8 +211,8 @@ from desktop.views import _ko
 
 </div>
 
-<div class="player-toolbar" data-bind="visible: $root.isPlayerMode()">
-  <div class="pull-right pointer" data-bind="visible: $root.isPlayerMode(), click: function(){ $root.isPlayerMode(false); }"><i class="fa fa-times"></i></div>
+<div class="player-toolbar" data-bind="visible: $root.isPlayerMode()" style="display: none;">
+  <div class="pull-right pointer" data-bind="click: function(){ hueUtils.exitFullScreen(); $root.isPlayerMode(false); }"><i class="fa fa-times"></i></div>
   <img src="${ static('desktop/art/icon_hue_48.png') }" />
   <!-- ko if: $root.selectedNotebook() -->
   <h4 data-bind="text: $root.selectedNotebook().name"></h4>
@@ -283,15 +273,17 @@ from desktop.views import _ko
             'placeholder': 'snippet-move-placeholder',
             'greedy': true,
             'stop': function(event, ui) {
-              $('.snippet-body').slideDown('fast', function () { $(window).scrollTop(lastWindowScrollPosition); });
+              var $element = $(event.target);
+              $element.find('.snippet-body').slideDown('fast', function () { $(window).scrollTop(lastWindowScrollPosition); });
             },
             'helper': function(event) {
               lastWindowScrollPosition = $(window).scrollTop();
-              $('.snippet-body').slideUp('fast', function () {
+              var $element = $(event.target);
+              $element.find('.snippet-body').slideUp('fast', function () {
                 $('.sortable-snippets').sortable('refreshPositions')
               });
-              var $element = $(event.target);
               var _par = $('<div>')
+                .css('overflow', 'hidden')
                 .addClass('card-widget snippet-move-helper')
                 .width($element.parents('.snippet').width());
               $('<h2>')
@@ -300,6 +292,10 @@ from desktop.views import _ko
                 .appendTo(_par)
                 .find('.hover-actions')
                 .removeClass('hover-actions');
+              $('<pre>')
+                .addClass('dragging-pre muted')
+                .html(ko.dataFor($element.parents('.card-widget')[0]).statement())
+                .appendTo(_par);
               _par.css('height', '100px');
               return _par;
             }
@@ -335,7 +331,7 @@ from desktop.views import _ko
 
       <h5 class="card-heading-print" data-bind="text: name, css: {'visible': name() != ''}"></h5>
 
-      <h2 class="card-heading simple" data-bind="visible: type() != 'text' || $root.isEditing()">
+      <h2 class="card-heading simple" data-bind="visible: type() != 'text' || $root.isEditing(), dblclick: function(){ $parent.newSnippetAbove(id()) }">
 
         <div class="dropdown inline widget-type" data-bind="visible: type() != 'text' || $root.isEditing()">
           <a class="dropdown-toggle no-underline" data-toggle="dropdown" href="javascript:void(0)">
@@ -348,10 +344,6 @@ from desktop.views import _ko
             <li><a class="pointer" data-bind="click: function(){ $parent.type($data.type()); }, text: name"></a></li>
           </ul>
         </div>
-
-        <label data-bind="visible: type() == 'text' && $root.isEditing()" class="checkbox inline" style="margin-top: -6px"><input type="checkbox" data-bind="checked: $data.subtype" /> Markdown</label>
-
-        <span data-bind="visible: type() == 'text'">&nbsp;</span>
 
         <span data-bind="editable: name, editableOptions: {enabled: $root.isEditing(), placement: 'right'}"></span>
 
@@ -367,8 +359,9 @@ from desktop.views import _ko
       <div>
         <div style="float: left; width: 50%">
           <div class="snippet-body" style="position: relative; z-index: 90;">
-            <!-- ko template: { if: ['text', 'jar', 'py'].indexOf(type()) == -1, name: 'code-editor-snippet-body' } --><!-- /ko -->
+            <!-- ko template: { if: ['text', 'jar', 'py', 'markdown'].indexOf(type()) == -1, name: 'code-editor-snippet-body' } --><!-- /ko -->
             <!-- ko template: { if: type() == 'text', name: 'text-snippet-body' } --><!-- /ko -->
+            <!-- ko template: { if: type() == 'markdown', name: 'markdown-snippet-body' } --><!-- /ko -->
             <!-- ko template: { if: type() == 'jar' || type() == 'py', name: 'executable-snippet-body' } --><!-- /ko -->
           </div>
         </div>
@@ -380,21 +373,24 @@ from desktop.views import _ko
         <div class="clearfix"></div>
       </div>
 
-      <div data-bind="delayedOverflow, visible: showLogs, css: resultsKlass" style="margin-top: 5px">
+      <div data-bind="delayedOverflow, visible: showLogs, css: resultsKlass" style="margin-top: 5px; position: relative">
+        <ul data-bind="visible: jobs().length > 0, foreach: jobs" class="unstyled jobs-overlay">
+          <li><a data-bind="text: $.trim($data.name), attr: { href: $data.url }" target="_blank"></a></li>
+        </ul>
         <pre data-bind="visible: result.logs().length == 0" class="logs logs-bigger">${ _('No logs available at this moment.') }</pre>
         <pre data-bind="visible: result.logs().length > 0, text: result.logs, logScroller: result.logs" class="logs logs-bigger"></pre>
       </div>
 
       <div data-bind="visible: ! result.hasResultset() && status() == 'available', css: resultsKlass">
-        ${ _('Success.') }
+        <pre class="margin-top-10 no-margin-bottom"><i class="fa fa-check muted"></i> ${ _('Success.') }</pre>
       </div>
 
       <div data-bind="visible: result.hasResultset() && status() == 'available' && result.data().length == 0 && result.fetchedOnce(), css: resultsKlass">
-        ${ _('Success but empty results.') }
+        <pre class="margin-top-10 no-margin-bottom"><i class="fa fa-check muted"></i> ${ _("Done. 0 results.") }</pre>
       </div>
 
       <div data-bind="visible: status() == 'available' && ! result.fetchedOnce(), css: resultsKlass">
-        ${ _('Loading...') }
+        <pre class="margin-top-10 no-margin-bottom"><i class="fa fa-spin fa-spinner"></i> ${ _('Loading...') }</pre>
       </div>
     </div>
   </div>
@@ -466,11 +462,11 @@ from desktop.views import _ko
 
 <script type="text/html" id="code-editor-snippet-body">
   <div class="row-fluid" style="margin-bottom: 5px">
-    <div class="editor span12" data-bind="verticalSlide: codeVisible">
+    <div class="editor span12" data-bind="verticalSlide: codeVisible, click: function(snippet, e){ setAceFocus(e, ace()); }">
       <div class="ace-editor" data-bind="attr: { id: id() }, delayedOverflow, aceEditor: {
           snippet: $data,
           openIt: '${ _ko("Alt or Ctrl + Click to open it") }'
-          }"></div>
+        }"></div>
       </div>
     <div class="clearfix"></div>
     <ul data-bind="foreach: variables" class="unstyled inline">
@@ -490,8 +486,11 @@ from desktop.views import _ko
 
 <script type="text/html" id="snippet-results">
   <div class="row-fluid" data-bind="slideVisible: result.hasSomeResults() && result.type() != 'table'" style="display:none; max-height: 400px; margin: 10px 0; overflow-y: auto">
-    <!-- ko if: result.data().length != 0 -->
-    <pre data-bind="text: result.data()[0][1]" style="margin-bottom: 0"></pre>
+    <!-- ko if: result.data().length != 0 && result.data()[0][1] != "" -->
+    <pre data-bind="text: result.data()[0][1]" class="no-margin-bottom"></pre>
+    <!-- /ko -->
+    <!-- ko ifnot: result.data().length != 0 && result.data()[0][1] != "" -->
+    <pre class="no-margin-bottom"><i class="fa fa-check muted"></i> ${ _("Done.") }</pre>
     <!-- /ko -->
     <!-- ko if: result.images().length != 0 -->
     <ul class="unstyled results-images" data-bind="foreach: result.images()">
@@ -662,28 +661,28 @@ from desktop.views import _ko
 </script>
 
 <script type="text/html" id="text-snippet-body">
-  <!-- ko ifnot: subtype() -->
   <div data-bind="attr:{'id': 'editor_' + id()}, html: statement_raw, value: statement_raw, medium: {}" data-placeHolder="${ _('Type your text here, select some text to format it') }" class="text-snippet"></div>
+</script>
+
+<script type="text/html" id="markdown-snippet-body">
+  <!-- ko if: $root.isEditing() -->
+  <div class="row-fluid">
+    <div class="span6">
+      <div class="ace-editor" data-bind="attr: { id: id() }, aceEditor: {
+        snippet: $data,
+        updateOnInput: true
+      }"></div>
+    </div>
+    <div class="span6">
+      <div data-bind="html: renderMarkdown(statement_raw(), id()), attr: {'id': 'liveMD'+id()}"></div>
+    </div>
+  </div>
   <!-- /ko -->
-  <!-- ko if: subtype() -->
-    <!-- ko if: $root.isEditing() -->
-      <div class="row-fluid">
-        <div class="span6">
-          <div class="ace-editor" data-bind="attr: { id: id() }, aceEditor: {
-              snippet: $data,
-              updateOnInput: true
-            "></div>
-        </div>
-        <div class="span6">
-          <div data-bind="html: renderMarkdown(statement_raw(), id()), attr: {'id': 'liveMD'+id()}"></div>
-        </div>
-      </div>
-    <!-- /ko -->
-    <!-- ko ifnot: $root.isEditing() -->
-      <div data-bind="html: renderMarkdown(statement_raw(), id())"></div>
-    <!-- /ko -->
+  <!-- ko ifnot: $root.isEditing() -->
+  <div data-bind="html: renderMarkdown(statement_raw(), id())"></div>
   <!-- /ko -->
 </script>
+
 
 <script type="text/html" id="executable-snippet-body">
   <div data-bind="verticalSlide: codeVisible" style="padding:10px;">
@@ -718,7 +717,7 @@ from desktop.views import _ko
 </script>
 
 <script type="text/html" id="snippet-footer-actions">
-  <div class="snippet-progress-container">
+  <div class="snippet-progress-container" data-bind="click: function(snippet, e){ setAceFocus(e, ace()); }">
     <div class="progress progress-striped active" style="height: 0" data-bind="css: {
       'progress-warning': progress() > 0 && progress() < 100,
       'progress-success': progress() == 100,
@@ -732,7 +731,7 @@ from desktop.views import _ko
     </ul>
   </div>
 
-  <div class="snippet-footer-actions-bar">
+  <div class="snippet-footer-actions-bar" data-bind="click: function(snippet, e){ setAceFocus(e, ace()); }">
     <a data-bind="visible: status() == 'loading'" class="btn btn-primary spark-btn" style="cursor: default;" title="${ _('Creating session') }">
       <i class="fa fa-spinner fa-spin"></i>
     </a>
@@ -940,250 +939,33 @@ from desktop.views import _ko
     <h3>${_('Connect to the data source')}</h3>
   </div>
   <div class="modal-body">
-    <input name="username" type="text" data-bind="value: $root.authSessionUsername" placeholder="${ _('Username') }"/>
-    <input name="password" type="password" data-bind="value: $root.authSessionPassword" placeholder="${ _('Password') }"/>
+    <div class="row-fluid">
+      <div class="span6">
+        <div class="input-prepend">
+          <span class="add-on muted"><i class="fa fa-user"></i></span>
+          <input name="username" type="text" data-bind="value: $root.authSessionUsername" placeholder="${ _('Username') }"/>
+        </div>
+      </div>
+      <div class="span6">
+        <div class="input-prepend">
+          <span class="add-on muted"><i class="fa fa-lock"></i></span>
+          <input name="password" type="password" data-bind="value: $root.authSessionPassword" placeholder="${ _('Password') }"/>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="modal-footer">
-    <a class="btn" data-dismiss="modal">${_('No')}</a>
-    <input type="submit" data-dismiss="modal" value="${_('Yes')}" class="btn btn-danger" data-bind="click: function() { $root.selectedNotebook().authSession(); }" />
+    <a class="btn" data-dismiss="modal">${_('Cancel')}</a>
+    <a class="btn btn-primary disable-feedback" data-dismiss="modal" data-bind="click: function() { $root.selectedNotebook().authSession(); }">${_('Connect')}</a>
   </div>
 </div>
-
+  
 </%def>
 
 
 <%def name="commonJS()">
 
 <script type="text/javascript" charset="utf-8">
-
-  var SNIPPET_VIEW_SETTINGS = {
-    default: {
-      placeHolder: '${ _("Example: SELECT * FROM tablename, or press CTRL + space") }',
-      aceMode: 'ace/mode/sql',
-      snippetIcon: 'fa-database',
-      sqlDialect: true
-    },
-    code: {
-      placeHolder: '${ _("Example: 1 + 1, or press CTRL + space") }',
-      snippetIcon: 'fa-code'
-    },
-    hive: {
-      placeHolder: '${ _("Example: SELECT * FROM tablename, or press CTRL + space") }',
-      aceMode: 'ace/mode/hive',
-      snippetImage: '${ static("beeswax/art/icon_beeswax_48.png") }',
-      sqlDialect: true
-    },
-    impala: {
-      placeHolder: '${ _("Example: SELECT * FROM tablename, or press CTRL + space") }',
-      aceMode: 'ace/mode/impala',
-      snippetImage: '${ static("impala/art/icon_impala_48.png") }',
-      sqlDialect: true
-    },
-    jar : {
-      snippetIcon: 'fa-file-archive-o '
-    },
-    mysql: {
-      placeHolder: '${ _("Example: SELECT * FROM tablename, or press CTRL + space") }',
-      aceMode: 'ace/mode/mysql',
-      snippetIcon: 'fa-database',
-      sqlDialect: true
-    },
-    mysqljdbc: {
-      placeHolder: '${ _("Example: SELECT * FROM tablename, or press CTRL + space") }',
-      aceMode: 'ace/mode/mysql',
-      snippetIcon: 'fa-database',
-      sqlDialect: true
-    },
-    pig: {
-      placeHolder: '${ _("Example: 1 + 1, or press CTRL + space") }',
-      aceMode: 'ace/mode/pig',
-      snippetImage: '${ static("pig/art/icon_pig_48.png") }'
-    },
-    pgsql: {
-      placeHolder: '${ _("Example: SELECT * FROM tablename, or press CTRL + space") }',
-      aceMode: 'ace/mode/pgsql',
-      snippetIcon: 'fa-database',
-      sqlDialect: true
-    },
-    py : {
-      snippetIcon: 'fa-file-code-o'
-    },
-    pyspark: {
-      placeHolder: '${ _("Example: 1 + 1, or press CTRL + space") }',
-      aceMode: 'ace/mode/python',
-      snippetImage: '${ static("spark/art/icon_spark_48.png") }'
-    },
-    r: {
-      placeHolder: '${ _("Example: 1 + 1, or press CTRL + space") }',
-      aceMode: 'ace/mode/r',
-      snippetImage: '${ static("spark/art/icon_spark_48.png") }'
-    },
-    spark: {
-      placeHolder: '${ _("Example: 1 + 1, or press CTRL + space") }',
-      aceMode: 'ace/mode/scala',
-      snippetImage: '${ static("spark/art/icon_spark_48.png") }'
-    },
-    text: {
-      placeholder: '${ _('Type your markdown here') }',
-      aceMode: 'markdown',
-      snippetIcon: 'fa-header'
-    }
-  };
-
-
-  // Drag and drop iPython / Zeppelin notebooks
-  if (window.FileReader) {
-
-    var showHoverMsg = function () {
-      $(".hoverMsg").removeClass("hide");
-    };
-
-    var hideHoverMsg = function () {
-      $(".hoverText").html("${_('Drop iPython/Zeppelin notebooks here')}");
-      $(".hoverMsg").addClass("hide");
-    };
-
-    var aceChecks = 0;
-
-    function handleFileSelect(evt) {
-      evt.stopPropagation();
-      evt.preventDefault();
-      var dt = evt.dataTransfer;
-      var files = dt.files;
-      if (files.length > 0){
-        showHoverMsg();
-      }
-      else {
-        hideHoverMsg();
-      }
-
-      function addMarkdown(content) {
-        var snip = viewModel.notebooks()[0].addSnippet({type: "text", result: {}}, true);
-        snip.subtype(true);
-        snip.statement_raw(content);
-      }
-
-      function addAce(content, snippetType) {
-        var snip = viewModel.notebooks()[0].addSnippet({type: snippetType, result: {}}, true);
-        snip.statement_raw(content);
-        aceChecks++;
-        snip.checkForAce = window.setInterval(function () {
-          if (snip.ace()) {
-            window.clearInterval(snip.checkForAce);
-            aceChecks--;
-            if (aceChecks == 0) {
-              hideHoverMsg();
-            }
-          }
-        }, 100);
-      }
-
-      function addPySpark(content) {
-        addAce(content, "pyspark");
-      }
-
-      function addSql(content) {
-        addAce(content, "hive");
-      }
-
-      function addScala(content) {
-        addAce(content, "spark");
-      }
-
-      for (var i = 0, f; f = files[i]; i++) {
-        var reader = new FileReader();
-        reader.onload = (function (file) {
-          return function (e) {
-            $(".hoverText").html("<i class='fa fa-spinner fa-spin'></i>");
-            try {
-              var loaded = JSON.parse(e.target.result);
-              if (loaded.cells) { //ipython
-                loaded.cells.forEach(function (cell, cellCnt) {
-                  window.setTimeout(function () {
-                    if (cell.cell_type == "code") {
-                      addPySpark(cell.source.join("\n"));
-                    }
-                    if (cell.cell_type == "markdown") {
-                      addMarkdown(cell.source.join("\n"));
-                    }
-                    if (cellCnt == loaded.cells.length - 1 && aceChecks == 0){
-                      hideHoverMsg();
-                    }
-                  }, 10);
-                });
-              }
-
-              if (loaded.paragraphs) { //zeppelin
-                if (loaded.name) {
-                  viewModel.notebooks()[0].name(loaded.name);
-                }
-                loaded.paragraphs.forEach(function (paragraph) {
-                  if (paragraph.text) {
-                    var content = paragraph.text.split("\n");
-                    if (content[0].indexOf("%md") > -1) {
-                      content.shift();
-                      addMarkdown(content.join("\n"));
-                    }
-                    else if (content[0].indexOf("%sql") > -1 || content[0].indexOf("%hive") > -1) {
-                      content.shift();
-                      addSql(content.join("\n"));
-                    }
-                    else if (content[0].indexOf("%pyspark") > -1) {
-                      content.shift();
-                      addPySpark(content.join("\n"));
-                    }
-                    else {
-                      if (content[0].indexOf("%spark") > -1){
-                        content.shift();
-                      }
-                      addScala(content.join("\n"));
-                    }
-                  }
-                });
-              }
-            }
-            catch (e) {
-              hideHoverMsg();
-            }
-          };
-        })(f);
-        reader.readAsText(f);
-      }
-    }
-
-    function handleDragOver(evt) {
-      evt.stopPropagation();
-      evt.preventDefault();
-      evt.dataTransfer.dropEffect = "copy";
-    }
-
-    var dropZone = $("body")[0];
-    dropZone.addEventListener("dragenter", showHoverMsg, false);
-    dropZone.addEventListener("dragover", handleDragOver, false);
-    dropZone.addEventListener("drop", handleFileSelect, false);
-
-    var isDraggingOverText = false;
-
-    $(".hoverText").on("dragenter", function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      isDraggingOverText = true;
-    });
-
-    $(".hoverText").on("dragleave", function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      isDraggingOverText = false;
-    });
-
-    $(".hoverMsg").on("dragleave", function (e) {
-      if (!isDraggingOverText) {
-        hideHoverMsg();
-      }
-    });
-  }
 
   function escapeMathJax(code) {
     var escapeMap = {
@@ -1227,6 +1009,13 @@ from desktop.views import _ko
   }
 
   ace.config.set("basePath", "/static/desktop/js/ace");
+
+  function setAceFocus(event, editor) {
+    if (!$(event.target).hasClass("ace_content")) {
+      editor.focus();
+      editor.execCommand("gotolineend");
+    }
+  }
 
   $.scrollbarWidth = function() {
     var _parent, _child, _width;
@@ -1356,7 +1145,6 @@ from desktop.views import _ko
   function isStringColumn(type) {
     return !isNumericColumn(type) && !isDateTimeColumn(type);
   }
-
 
   function pieChartDataTransformer(rawDatum) {
     var _data = [];
@@ -1574,289 +1362,567 @@ from desktop.views import _ko
     return _datum;
   }
 
-  function redrawFixedHeaders() {
-    viewModel.notebooks().forEach(function (notebook) {
-      notebook.snippets().forEach(function (snippet) {
-        var _el = $("#snippet_" + snippet.id()).find(".resultTable");
-        _el.jHueTableExtender({
-          fixedHeader: true,
-          includeNavigator: false,
-          parentId: 'snippet_' + snippet.id(),
-          clonedContainerPosition: "absolute"
+  require([
+    "knockout",
+    "notebook/js/notebook.ko",
+    "ko.charts",
+    "knockout-mapping",
+    "knockout-sortable",
+    "knockout-deferred-updates",
+    "ko.editable",
+    "ko.hue-bindings"
+  ], function (ko, EditorViewModel) {
+
+      var VIEW_MODEL_OPTIONS = $.extend(${ options_json | n,unicode }, {
+      user: '${ user.username }',
+      assistAvailable: '${ autocomplete_base_url | n,unicode }' !== '',
+      snippetViewSettings: {
+        default: {
+          placeHolder: '${ _("Example: SELECT * FROM tablename, or press CTRL + space") }',
+          aceMode: 'ace/mode/sql',
+          snippetIcon: 'fa-database',
+          sqlDialect: true
+        },
+        code: {
+          placeHolder: '${ _("Example: 1 + 1, or press CTRL + space") }',
+          snippetIcon: 'fa-code'
+        },
+        hive: {
+          placeHolder: '${ _("Example: SELECT * FROM tablename, or press CTRL + space") }',
+          aceMode: 'ace/mode/hive',
+          snippetImage: '${ static("beeswax/art/icon_beeswax_48.png") }',
+          sqlDialect: true
+        },
+        impala: {
+          placeHolder: '${ _("Example: SELECT * FROM tablename, or press CTRL + space") }',
+          aceMode: 'ace/mode/impala',
+          snippetImage: '${ static("impala/art/icon_impala_48.png") }',
+          sqlDialect: true
+        },
+        jar : {
+          snippetIcon: 'fa-file-archive-o '
+        },
+        mysql: {
+          placeHolder: '${ _("Example: SELECT * FROM tablename, or press CTRL + space") }',
+          aceMode: 'ace/mode/mysql',
+          snippetIcon: 'fa-database',
+          sqlDialect: true
+        },
+        mysqljdbc: {
+          placeHolder: '${ _("Example: SELECT * FROM tablename, or press CTRL + space") }',
+          aceMode: 'ace/mode/mysql',
+          snippetIcon: 'fa-database',
+          sqlDialect: true
+        },
+        pig: {
+          placeHolder: '${ _("Example: 1 + 1, or press CTRL + space") }',
+          aceMode: 'ace/mode/pig',
+          snippetImage: '${ static("pig/art/icon_pig_48.png") }'
+        },
+        pgsql: {
+          placeHolder: '${ _("Example: SELECT * FROM tablename, or press CTRL + space") }',
+          aceMode: 'ace/mode/pgsql',
+          snippetIcon: 'fa-database',
+          sqlDialect: true
+        },
+        py : {
+          snippetIcon: 'fa-file-code-o'
+        },
+        pyspark: {
+          placeHolder: '${ _("Example: 1 + 1, or press CTRL + space") }',
+          aceMode: 'ace/mode/python',
+          snippetImage: '${ static("spark/art/icon_spark_48.png") }'
+        },
+        r: {
+          placeHolder: '${ _("Example: 1 + 1, or press CTRL + space") }',
+          aceMode: 'ace/mode/r',
+          snippetImage: '${ static("spark/art/icon_spark_48.png") }'
+        },
+        spark: {
+          placeHolder: '${ _("Example: 1 + 1, or press CTRL + space") }',
+          aceMode: 'ace/mode/scala',
+          snippetImage: '${ static("spark/art/icon_spark_48.png") }'
+        },
+        text: {
+          placeHolder: '${ _('Type your text here') }',
+          aceMode: 'ace/mode/text',
+          snippetIcon: 'fa-header'
+        },
+        markdown: {
+          placeHolder: '${ _('Type your markdown here') }',
+          aceMode: 'ace/mode/markdown',
+          snippetIcon: 'fa-header'
+        }
+      }
+    });
+
+    var viewModel;
+
+    var redrawFixedHeaders = function () {
+      viewModel.notebooks().forEach(function (notebook) {
+        notebook.snippets().forEach(function (snippet) {
+          var _el = $("#snippet_" + snippet.id()).find(".resultTable");
+          _el.jHueTableExtender({
+            fixedHeader: true,
+            includeNavigator: false,
+            parentId: 'snippet_' + snippet.id(),
+            clonedContainerPosition: "absolute"
+          });
         });
       });
-    });
-  }
-
-  $(document).ready(function () {
-    // Close the notebook snippets when leaving the page
-    window.onbeforeunload = function (e) {
-      viewModel.selectedNotebook().close();
     };
 
-    $(".preview-sample").css("right", (10 + $.scrollbarWidth()) + "px");
+    window.redrawFixedHeaders = redrawFixedHeaders;
 
-    $(window).bind("keydown", "ctrl+s alt+s meta+s", function (e) {
-      e.preventDefault();
-      viewModel.saveNotebook();
-      return false;
-    });
+    // Drag and drop iPython / Zeppelin notebooks
+    if (window.FileReader) {
 
-    $(window).bind("keydown", "ctrl+n alt+n meta+n", function (e) {
-      e.preventDefault();
-      viewModel.selectedNotebook().newSnippet();
-      return false;
-    });
+      var showHoverMsg = function () {
+        $(".hoverMsg").removeClass("hide");
+      };
 
-    var initialResizePosition = 100;
+      var hideHoverMsg = function () {
+        $(".hoverText").html("${_('Drop iPython/Zeppelin notebooks here')}");
+        $(".hoverMsg").addClass("hide");
+      };
 
-    function getDraggableOptions(minY) {
-      return {
-        axis: "y",
-        start: function (e, ui) {
-          initialResizePosition = ui.offset.top;
-        },
-        drag: function (e, ui) {
-          draggableHelper($(this), e, ui);
-          $(".jHueTableExtenderClonedContainer").hide();
-        },
-        stop: function (e, ui) {
-          $(".jHueTableExtenderClonedContainer").show();
-          draggableHelper($(this), e, ui, true);
-          redrawFixedHeaders();
-          ui.helper.first().removeAttr("style");
-        },
-        containment: [0, minY, 4000, minY + 400]
+      var aceChecks = 0;
+
+      function handleFileSelect (evt) {
+        evt.stopPropagation();
+        evt.preventDefault();
+        var dt = evt.dataTransfer;
+        var files = dt.files;
+        if (files.length > 0){
+          showHoverMsg();
+        }
+        else {
+          hideHoverMsg();
+        }
+
+        function addAce (content, snippetType) {
+          var snip = viewModel.notebooks()[0].addSnippet({type: snippetType, result: {}}, true);
+          snip.statement_raw(content);
+          aceChecks++;
+          snip.checkForAce = window.setInterval(function () {
+            if (snip.ace()) {
+              window.clearInterval(snip.checkForAce);
+              aceChecks--;
+              if (aceChecks == 0) {
+                hideHoverMsg();
+              }
+            }
+          }, 100);
+        }
+
+        function addMarkdown (content) {
+          var snip = viewModel.notebooks()[0].addSnippet({type: "markdown", result: {}}, true);
+          snip.statement_raw(content);
+        }
+
+        function addPySpark (content) {
+          addAce(content, "pyspark");
+        }
+
+        function addSql (content) {
+          addAce(content, "hive");
+        }
+
+        function addScala (content) {
+          addAce(content, "spark");
+        }
+
+        for (var i = 0, f; f = files[i]; i++) {
+          var reader = new FileReader();
+          reader.onload = (function (file) {
+            return function (e) {
+              $(".hoverText").html("<i class='fa fa-spinner fa-spin'></i>");
+              try {
+                var loaded = JSON.parse(e.target.result);
+                if (loaded.nbformat) { //ipython
+                  var cells = [];
+                  if (loaded.nbformat == 3) {
+                    cells = loaded.worksheets[0].cells;
+                  }
+                  else if (loaded.nbformat == 4) {
+                    cells = loaded.cells;
+                  }
+                  cells.forEach(function (cell, cellCnt) {
+                    window.setTimeout(function () {
+                      if (cell.cell_type == "code") {
+                        if (loaded.nbformat == 3) {
+                          addPySpark($.isArray(cell.input) ? cell.input.join("\n") : cell.input);
+                        }
+                        else {
+                          addPySpark($.isArray(cell.source) ? cell.source.join("\n") : cell.source);
+                        }
+                      }
+                      if (cell.cell_type == "heading") {
+                        var heading = $.isArray(cell.source) ? cell.source.join("") : cell.source;
+                        if (cell.level == 1) {
+                          heading += "\n====================";
+                        }
+                        else if (cell.level == 2) {
+                          heading += "\n--------------------";
+                        }
+                        else {
+                          heading = "### " + heading;
+                        }
+                        addMarkdown(heading);
+                      }
+                      if (cell.cell_type == "markdown") {
+                        addMarkdown($.isArray(cell.source) ? cell.source.join("") : cell.source);
+                      }
+                      if (cellCnt == cells.length - 1 && aceChecks == 0) {
+                        hideHoverMsg();
+                      }
+                    }, 10);
+                  });
+                }
+
+                if (loaded.paragraphs) { //zeppelin
+                  if (loaded.name) {
+                    viewModel.notebooks()[0].name(loaded.name);
+                  }
+                  loaded.paragraphs.forEach(function (paragraph) {
+                    if (paragraph.text) {
+                      var content = paragraph.text.split("\n");
+                      if (content[0].indexOf("%md") > -1) {
+                        content.shift();
+                        addMarkdown(content.join("\n"));
+                      }
+                      else if (content[0].indexOf("%sql") > -1 || content[0].indexOf("%hive") > -1) {
+                        content.shift();
+                        addSql(content.join("\n"));
+                      }
+                      else if (content[0].indexOf("%pyspark") > -1) {
+                        content.shift();
+                        addPySpark(content.join("\n"));
+                      }
+                      else {
+                        if (content[0].indexOf("%spark") > -1){
+                          content.shift();
+                        }
+                        addScala(content.join("\n"));
+                      }
+                    }
+                  });
+                }
+              }
+              catch (e) {
+                hideHoverMsg();
+              }
+            };
+          })(f);
+          reader.readAsText(f);
+        }
       }
-    };
 
-    $(".resize-panel a").each(function () {
-      $(this).draggable(getDraggableOptions($(this).parents(".snippet").offset().top + 128));
-    });
-
-    function draggableHelper(el, e, ui, setSize) {
-      var _snippet = ko.dataFor(el.parents(".snippet")[0]);
-      var _cm = $("#snippet_" + _snippet.id()).data("editor");
-      var _newSize = _snippet.codemirrorSize() + (ui.offset.top - initialResizePosition);
-      _cm.setSize("99%", _newSize);
-      if (setSize) {
-        _snippet.codemirrorSize(_newSize);
+      function handleDragOver (evt) {
+        evt.stopPropagation();
+        evt.preventDefault();
+        evt.dataTransfer.dropEffect = "copy";
       }
-    }
 
-    $(document).on("toggleResultSettings", function (e, snippet) {
-      window.setTimeout(function() {
-        $("#snippet_" + snippet.id()).find(".chart").trigger("forceUpdate");
-        redrawFixedHeaders();
-      }, 10)
-    });
+      var dropZone = $("body")[0];
+      dropZone.addEventListener("dragenter", showHoverMsg, false);
+      dropZone.addEventListener("dragover", handleDragOver, false);
+      dropZone.addEventListener("drop", handleFileSelect, false);
 
-    $(document).on("editorSizeChanged", function () {
-      window.setTimeout(redrawFixedHeaders, 50);
-    });
+      var isDraggingOverText = false;
 
-    $(document).on("executeStarted", function (e, snippet) {
-      var _el = $("#snippet_" + snippet.id()).find(".resultTable");
-      $("#snippet_" + snippet.id()).find(".progress").animate({
-        height: "4px"
-      }, 100);
-      if (_el.hasClass("dt")) {
-        _el.removeClass("dt");
-        $("#eT" + snippet.id() + "jHueTableExtenderClonedContainer").remove();
-        _el.dataTable().fnClearTable();
-        _el.dataTable().fnDestroy();
-        _el.find("thead tr").empty();
-      }
-    });
+      $(".hoverText").on("dragenter", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        isDraggingOverText = true;
+      });
 
-    function resizeToggleResultSettings(snippet) {
-      var _dtElement;
-      if (snippet.showGrid()) {
-        _dtElement = $("#snippet_" + snippet.id()).find(".dataTables_wrapper");
-      }
-      else {
-        _dtElement = $("#snippet_" + snippet.id()).find(".chart:visible");
-      }
-      if (_dtElement.length == 0) {
-        _dtElement = $("#snippet_" + snippet.id()).find(".table-results");
-      }
-      _dtElement.parents(".snippet-body").find(".toggle-result-settings").css({
-        "height": (_dtElement.height() - 30) + "px",
-        "line-height": (_dtElement.height() - 30) + "px"
+      $(".hoverText").on("dragleave", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        isDraggingOverText = false;
+      });
+
+      $(".hoverMsg").on("dragleave", function (e) {
+        if (!isDraggingOverText) {
+          hideHoverMsg();
+        }
       });
     }
 
-    $(document).on("renderData", function (e, options) {
-      var _el = $("#snippet_" + options.snippet.id()).find(".resultTable");
-      if (options.data.length > 0) {
+
+
+    $(document).ready(function () {
+      viewModel = new EditorViewModel(${ notebooks_json | n,unicode }, VIEW_MODEL_OPTIONS);
+      ko.applyBindings(viewModel);
+      viewModel.init();
+
+      window.hueDebug = {
+        viewModel: viewModel,
+        ko: ko
+      }
+
+      var isAssistAvailable = viewModel.assistAvailable();
+      var wasAssistVisible = viewModel.isLeftPanelVisible();
+
+
+      viewModel.isPlayerMode.subscribe(function (value) {
+        if (value){
+          $(".jHueNotify").hide();
+          viewModel.assistAvailable(false);
+          viewModel.isLeftPanelVisible(false);
+          $(".navigator").hide();
+          $(".add-snippet").hide();
+          $(".main-content").css("top", "50px");
+        }
+        else {
+          viewModel.isLeftPanelVisible(wasAssistVisible);
+          viewModel.assistAvailable(isAssistAvailable);
+          $(".navigator").show();
+          $(".add-snippet").show();
+          $(".main-content").css("top", "70px");
+        }
+      });
+
+      $(document).on("showAuthModal", function (e, data) {
+        viewModel.authSessionUsername('${ user.username }');
+        viewModel.authSessionPassword('');
+        viewModel.authSessionType(data['type']);
+        viewModel.authSessionCallback(data['callback']);
+        $("#authModal").modal("show");
+      });
+
+      // Close the notebook snippets when leaving the page
+      window.onbeforeunload = function (e) {
+        viewModel.selectedNotebook().close();
+      };
+
+      $(".preview-sample").css("right", (10 + $.scrollbarWidth()) + "px");
+
+      $(window).bind("keydown", "ctrl+s alt+s meta+s", function (e) {
+        e.preventDefault();
+        viewModel.saveNotebook();
+        return false;
+      });
+
+      $(window).bind("keydown", "ctrl+n alt+n meta+n", function (e) {
+        e.preventDefault();
+        viewModel.selectedNotebook().newSnippet();
+        return false;
+      });
+
+      var initialResizePosition = 100;
+
+      function getDraggableOptions (minY) {
+        return {
+          axis: "y",
+          start: function (e, ui) {
+            initialResizePosition = ui.offset.top;
+          },
+          drag: function (e, ui) {
+            draggableHelper($(this), e, ui);
+            $(".jHueTableExtenderClonedContainer").hide();
+          },
+          stop: function (e, ui) {
+            $(".jHueTableExtenderClonedContainer").show();
+            draggableHelper($(this), e, ui, true);
+            redrawFixedHeaders();
+            ui.helper.first().removeAttr("style");
+          },
+          containment: [0, minY, 4000, minY + 400]
+        }
+      }
+
+      $(".resize-panel a").each(function () {
+        $(this).draggable(getDraggableOptions($(this).parents(".snippet").offset().top + 128));
+      });
+
+      function draggableHelper (el, e, ui, setSize) {
+        var _snippet = ko.dataFor(el.parents(".snippet")[0]);
+        var _cm = $("#snippet_" + _snippet.id()).data("editor");
+        var _newSize = _snippet.codemirrorSize() + (ui.offset.top - initialResizePosition);
+        _cm.setSize("99%", _newSize);
+        if (setSize) {
+          _snippet.codemirrorSize(_newSize);
+        }
+      }
+
+      $(document).on("toggleResultSettings", function (e, snippet) {
         window.setTimeout(function () {
-          var _dt;
-          if (options.initial) {
-            options.snippet.result.meta.notifySubscribers();
-            $("#snippet_" + options.snippet.id()).find("select").trigger("chosen:updated");
-            _dt = createDatatable(_el, options.snippet);
-          }
-          else {
-            _dt = _el.dataTable();
-          }
-          _dt.fnAddData(options.data);
+          $("#snippet_" + snippet.id()).find(".chart").trigger("forceUpdate");
+          redrawFixedHeaders();
+        }, 10)
+      });
+
+      $(document).on("editorSizeChanged", function () {
+        window.setTimeout(redrawFixedHeaders, 50);
+      });
+
+      $(document).on("executeStarted", function (e, snippet) {
+        var _el = $("#snippet_" + snippet.id()).find(".resultTable");
+        $("#snippet_" + snippet.id()).find(".progress").animate({
+          height: "4px"
+        }, 100);
+        if (_el.hasClass("dt")) {
+          _el.removeClass("dt");
+          $("#eT" + snippet.id() + "jHueTableExtenderClonedContainer").remove();
+          _el.dataTable().fnClearTable();
+          _el.dataTable().fnDestroy();
+          _el.find("thead tr").empty();
+        }
+      });
+
+      function resizeToggleResultSettings (snippet) {
+        var _dtElement;
+        if (snippet.showGrid()) {
+          _dtElement = $("#snippet_" + snippet.id()).find(".dataTables_wrapper");
+        }
+        else {
+          _dtElement = $("#snippet_" + snippet.id()).find(".chart:visible");
+        }
+        if (_dtElement.length == 0) {
+          _dtElement = $("#snippet_" + snippet.id()).find(".table-results");
+        }
+        _dtElement.parents(".snippet-body").find(".toggle-result-settings").css({
+          "height": (_dtElement.height() - 30) + "px",
+          "line-height": (_dtElement.height() - 30) + "px"
+        });
+      }
+
+      $(document).on("renderData", function (e, options) {
+        var _el = $("#snippet_" + options.snippet.id()).find(".resultTable");
+        if (options.data.length > 0) {
+          window.setTimeout(function () {
+            var _dt;
+            if (options.initial) {
+              options.snippet.result.meta.notifySubscribers();
+              $("#snippet_" + options.snippet.id()).find("select").trigger("chosen:updated");
+              _dt = createDatatable(_el, options.snippet);
+            }
+            else {
+              _dt = _el.dataTable();
+            }
+            _dt.fnAddData(options.data);
+            var _dtElement = $("#snippet_" + options.snippet.id()).find(".dataTables_wrapper");
+            _dtElement.animate({opacity: '1'}, 50);
+            _dtElement.scrollTop(_dtElement.data("scrollPosition"));
+            redrawFixedHeaders();
+            resizeToggleResultSettings(options.snippet);
+          }, 300);
+        }
+        else {
           var _dtElement = $("#snippet_" + options.snippet.id()).find(".dataTables_wrapper");
           _dtElement.animate({opacity: '1'}, 50);
-          _dtElement.scrollTop(_dtElement.data("scrollPosition"));
-          redrawFixedHeaders();
-          resizeToggleResultSettings(options.snippet);
-        }, 300);
-      }
-      else {
+          _dtElement.off("scroll");
+        }
+        $("#snippet_" + options.snippet.id()).find("select").trigger('chosen:updated');
+      });
+
+      $(document).on("renderDataError", function (e, options) {
         var _dtElement = $("#snippet_" + options.snippet.id()).find(".dataTables_wrapper");
         _dtElement.animate({opacity: '1'}, 50);
         _dtElement.off("scroll");
-      }
-      $("#snippet_" + options.snippet.id()).find("select").trigger('chosen:updated');
-    });
-
-    $(document).on("renderDataError", function (e, options) {
-      var _dtElement = $("#snippet_" + options.snippet.id()).find(".dataTables_wrapper");
-      _dtElement.animate({opacity: '1'}, 50);
-      _dtElement.off("scroll");
-    });
-
-    $(document).on("progress", function (e, options) {
-      if (options.data == 100) {
-        window.setTimeout(function () {
-          $("#snippet_" + options.snippet.id()).find(".progress").animate({
-            height: "0"
-          }, 100, function () {
-            options.snippet.progress(0);
-            redrawFixedHeaders();
-          });
-        }, 2000);
-      }
-    });
-
-    $(document).on("gridShown", function (e, snippet) {
-      window.setTimeout(function () {
-        resizeToggleResultSettings(snippet);
-      }, 50);
-    });
-
-    $(document).on("chartShown", function (e, snippet) {
-      window.setTimeout(function () {
-        resizeToggleResultSettings(snippet);
-      }, 50);
-    });
-
-    $(document).on("forceChartDraw", function (e, snippet) {
-      window.setTimeout(function () {
-        snippet.chartX.notifySubscribers();
-        snippet.chartX.valueHasMutated();
-      }, 100);
-    });
-
-    $(document).on("refreshCodeMirror", function (e, snippet) {
-      window.setTimeout(function () {
-        $("#snippet_" + snippet.id()).find(".CodeMirror").each(function () {
-          $(this)[0].CodeMirror.refresh();
-        });
-      }, 100);
-    });
-
-    var hideTimeout = -1;
-    $(document).on("hideAutocomplete", function () {
-      window.clearTimeout(hideTimeout);
-      hideTimeout = window.setTimeout(function () {
-        $aceAutocomplete = $(".ace_editor.ace_autocomplete");
-        if ($aceAutocomplete.is(":visible")) {
-          $aceAutocomplete.hide();
-        }
-      }, 100);
-    });
-
-    function forceChartDraws() {
-      viewModel.notebooks().forEach(function (notebook) {
-        notebook.snippets().forEach(function (snippet) {
-          if (snippet.result.data().length > 0) {
-            var _elCheckerInterval = -1;
-            _elCheckerInterval = window.setInterval(function () {
-              var _el = $("#snippet_" + snippet.id()).find(".resultTable");
-              if ($("#snippet_" + snippet.id()).find(".resultTable").length > 0) {
-                try {
-                  var _dt = createDatatable(_el, snippet);
-                  _dt.fnClearTable();
-                  _dt.fnAddData(snippet.result.data());
-                  resizeToggleResultSettings(snippet);
-                  $(document).trigger("forceChartDraw", snippet);
-                  window.clearInterval(_elCheckerInterval);
-                }
-                catch (e) {
-                }
-              }
-            }, 200)
-          }
-        });
       });
-    }
 
-    forceChartDraws();
+      $(document).on("progress", function (e, options) {
+        if (options.data == 100) {
+          window.setTimeout(function () {
+            $("#snippet_" + options.snippet.id()).find(".progress").animate({
+              height: "0"
+            }, 100, function () {
+              options.snippet.progress(0);
+              redrawFixedHeaders();
+            });
+          }, 2000);
+        }
+      });
 
-    $(".CodeMirror").each(function () {
-      $(this)[0].CodeMirror.refresh();
-    });
+      $(document).on("gridShown", function (e, snippet) {
+        window.setTimeout(function () {
+          resizeToggleResultSettings(snippet);
+        }, 50);
+      });
 
-    var _resizeTimeout = -1;
-    $(window).on("resize", function () {
-      window.clearTimeout(_resizeTimeout);
-      _resizeTimeout = window.setTimeout(function () {
-        forceChartDraws();
-      }, 200);
+      $(document).on("chartShown", function (e, snippet) {
+        window.setTimeout(function () {
+          resizeToggleResultSettings(snippet);
+        }, 50);
+      });
+
+      $(document).on("forceChartDraw", function (e, snippet) {
+        window.setTimeout(function () {
+          snippet.chartX.notifySubscribers();
+          snippet.chartX.valueHasMutated();
+        }, 100);
+      });
+
+      $(document).on("refreshCodeMirror", function (e, snippet) {
+        window.setTimeout(function () {
+          $("#snippet_" + snippet.id()).find(".CodeMirror").each(function () {
+            $(this)[0].CodeMirror.refresh();
+          });
+        }, 100);
+      });
+
+      var hideTimeout = -1;
+      $(document).on("hideAutocomplete", function () {
+        window.clearTimeout(hideTimeout);
+        hideTimeout = window.setTimeout(function () {
+          $aceAutocomplete = $(".ace_editor.ace_autocomplete");
+          if ($aceAutocomplete.is(":visible")) {
+            $aceAutocomplete.hide();
+          }
+        }, 100);
+      });
+
+      function forceChartDraws() {
+        viewModel.notebooks().forEach(function (notebook) {
+          notebook.snippets().forEach(function (snippet) {
+            if (snippet.result.data().length > 0) {
+              var _elCheckerInterval = -1;
+              _elCheckerInterval = window.setInterval(function () {
+                var _el = $("#snippet_" + snippet.id()).find(".resultTable");
+                if ($("#snippet_" + snippet.id()).find(".resultTable").length > 0) {
+                  try {
+                    var _dt = createDatatable(_el, snippet);
+                    _dt.fnClearTable();
+                    _dt.fnAddData(snippet.result.data());
+                    resizeToggleResultSettings(snippet);
+                    $(document).trigger("forceChartDraw", snippet);
+                    window.clearInterval(_elCheckerInterval);
+                  }
+                  catch (e) {
+                  }
+                }
+              }, 200)
+            }
+          });
+        });
+      }
+
+      forceChartDraws();
+
+      $(".CodeMirror").each(function () {
+        $(this)[0].CodeMirror.refresh();
+      });
+
+      var _resizeTimeout = -1;
+      $(window).on("resize", function () {
+        window.clearTimeout(_resizeTimeout);
+        _resizeTimeout = window.setTimeout(function () {
+          forceChartDraws();
+        }, 200);
+      });
     });
   });
 
-
-  function downloadResult(snippet, format) {
+  function downloadResult (snippet, format) {
     $('#snippet_' + snippet.id()).find('.download-format').val(format);
     $('#snippet_' + snippet.id()).find('input[name=\'notebook\']').val(ko.mapping.toJSON(viewModel.selectedNotebook().getContext()));
     $('#snippet_' + snippet.id()).find('input[name=\'snippet\']').val(ko.mapping.toJSON(snippet.getContext()));
     $('#snippet_' + snippet.id()).find('.download-form').submit();
   }
-
-  var vmOptions = ${ options_json | n,unicode };
-  vmOptions.user = '${user.username}';
-  vmOptions.assistAvailable = "${ autocomplete_base_url | n,unicode }" !== "";
-  vmOptions.snippetViewSettings = SNIPPET_VIEW_SETTINGS;
-
-  viewModel = new EditorViewModel(${ notebooks_json | n,unicode }, vmOptions);
-  ko.applyBindings(viewModel);
-  viewModel.init();
-
-  var isAssistAvailable = viewModel.assistAvailable();
-  var wasAssistVisible = viewModel.isLeftPanelVisible();
-
-
-  viewModel.isPlayerMode.subscribe(function(value) {
-    if (value){
-      $(".jHueNotify").hide();
-      viewModel.assistAvailable(false);
-      viewModel.isLeftPanelVisible(false);
-      $(".navigator").hide();
-      $(".add-snippet").hide();
-      $(".main-content").css("top", "50px");
-    }
-    else {
-      viewModel.isLeftPanelVisible(wasAssistVisible);
-      viewModel.assistAvailable(isAssistAvailable);
-      $(".navigator").show();
-      $(".add-snippet").show();
-      $(".main-content").css("top", "70px");
-    }
-  });
-
-  $(document).on("showAuthModal", function(e, data) {
-    viewModel.authSessionUsername('${ user.username }');
-    viewModel.authSessionPassword('');
-    viewModel.authSessionType(data['type']);
-    viewModel.authSessionSnippet(data['snippet']);
-    $("#authModal").modal("show");
-  });
 </script>
 </%def>

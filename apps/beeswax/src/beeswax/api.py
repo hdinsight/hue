@@ -27,6 +27,7 @@ from django.utils.translation import ugettext as _
 from thrift.transport.TTransport import TTransportException
 from desktop.context_processors import get_app_name
 from desktop.lib.django_util import JsonResponse
+from desktop.lib.exceptions import StructuredThriftTransportException
 from desktop.lib.exceptions_renderable import PopupException
 from desktop.lib.i18n import force_unicode
 from desktop.lib.parameterization import substitute_variables
@@ -114,6 +115,13 @@ def _autocomplete(db, database=None, table=None, column=None, nested=None):
         if nested:
           parse_tree = _extract_nested_type(parse_tree, nested)
         response = parse_tree
+        # If column or nested type is scalar/primitive, add sample of values
+        if parser.is_scalar_type(parse_tree['type']):
+          table_obj = db.get_table(database, table)
+          sample = db.get_sample(database, table_obj, column, nested)
+          if sample:
+            sample = set([row[0] for row in sample.rows()])
+            response['sample'] = sorted(list(sample))
       else:
         raise Exception('Could not find column `%s`.`%s`.`%s`' % (database, table, column))
   except (QueryServerTimeoutException, TTransportException), e:
@@ -368,7 +376,8 @@ def save_query_design(request, design_id=None):
         'query': [query_form.query.errors],
         'settings': query_form.settings.errors,
         'file_resources': query_form.file_resources.errors,
-        'functions': query_form.functions.errors
+        'functions': query_form.functions.errors,
+        'saveform': query_form.saveform.errors,
       }
   except RuntimeError, e:
     response['message'] = str(e)
@@ -639,10 +648,17 @@ def describe_table(request, database, table):
 
 def get_query_form(request):
   try:
-    # Get database choices
-    query_server = dbms.get_query_server_config(get_app_name(request))
-    db = dbms.get(request.user, query_server)
-    databases = [(database, database) for database in db.get_databases()]
+    try:
+      # Get database choices
+      query_server = dbms.get_query_server_config(get_app_name(request))
+      db = dbms.get(request.user, query_server)
+      databases = [(database, database) for database in db.get_databases()]
+    except StructuredThriftTransportException, e:
+      # If Thrift exception was due to failed authentication, raise corresponding message
+      if 'TSocket read 0 bytes' in str(e) or 'Error validating the login' in str(e):
+        raise PopupException(_('Failed to authenticate to query server, check authentication configurations.'), detail=e)
+      else:
+        raise e
   except Exception, e:
     raise PopupException(_('Unable to access databases, Query Server or Metastore may be down.'), detail=e)
 

@@ -56,6 +56,8 @@ object InteractiveSessionProcess extends Logging {
     createInteractiveRequest.jars.map(RelativePath).foreach(builder.jar)
     createInteractiveRequest.proxyUser.foreach(builder.proxyUser)
     createInteractiveRequest.pyFiles.map(RelativePath).foreach(builder.pyFile)
+    createInteractiveRequest.queue.foreach(builder.queue)
+    createInteractiveRequest.name.foreach(builder.name)
 
     sys.env.get("LIVY_REPL_JAVA_OPTS").foreach(builder.driverJavaOptions)
     livyConf.getOption(CONF_LIVY_REPL_DRIVER_CLASS_PATH).foreach(builder.driverClassPath)

@@ -422,7 +422,7 @@ def edit_coordinator(request):
     LOG.error(smart_str(e))
 
   workflows = [dict([('uuid', d.content_object.uuid), ('name', d.content_object.name)])
-                    for d in Document.objects.get_docs(request.user, Document2, extra='workflow2')]
+                    for d in Document.objects.available_docs(Document2, request.user).filter(extra='workflow2')]
 
   if coordinator_id and not filter(lambda a: a['uuid'] == coordinator.data['properties']['workflow'], workflows):
     raise PopupException(_('You don\'t have access to the workflow of this coordinator.'))
@@ -568,7 +568,7 @@ def submit_coordinator(request, doc_id):
 def _submit_coordinator(request, coordinator, mapping):
   try:
     wf_doc = Document2.objects.get(uuid=coordinator.data['properties']['workflow'])
-    wf_dir = Submission(request.user, Workflow(document=wf_doc), request.fs, request.jt, mapping).deploy()
+    wf_dir = Submission(request.user, Workflow(document=wf_doc), request.fs, request.jt, mapping, local_tz=coordinator.data['properties']['timezone']).deploy()
 
     properties = {'wf_application_path': request.fs.get_hdfs_path(wf_dir)}
     properties.update(mapping)
