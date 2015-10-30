@@ -46,15 +46,11 @@ object Main extends Logging {
 
   def main(args: Array[String]): Unit = {
 
-    val host = Option(System.getProperty("livy.repl.host"))
-      .orElse(sys.env.get("LIVY_HOST"))
+    val host = sys.env.get("LIVY_HOST")
       .getOrElse("0.0.0.0")
 
-    val port = Option(System.getProperty("livy.repl.port"))
-      .orElse(sys.env.get("LIVY_PORT"))
+    val port = sys.env.get("LIVY_PORT")
       .getOrElse("8999").toInt
-
-    info(s"REPL Port: $port")
 
     if (args.length != 2) {
       println("Must specify either `pyspark`/`spark`/`sparkr` for the session kind, and provide callback url")
