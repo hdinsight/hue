@@ -47,7 +47,6 @@ object InteractiveSessionYarn {
 
     builder.master("yarn-cluster")
     builder.className("com.cloudera.hue.livy.repl.Main")
-    builder.driverJavaOptions(f"-Dlivy.repl.callback-url=$url -Dlivy.repl.port=0")
     createInteractiveRequest.archives.map(RelativePath).foreach(builder.archive)
     createInteractiveRequest.driverCores.foreach(builder.driverCores)
     createInteractiveRequest.driverMemory.foreach(builder.driverMemory)
@@ -70,7 +69,7 @@ object InteractiveSessionYarn {
     builder.redirectOutput(Redirect.PIPE)
     builder.redirectErrorStream(true)
 
-    val process = builder.start(AbsolutePath(livyJar(livyConf)), List(kind))
+    val process = builder.start(AbsolutePath(livyJar(livyConf)), List(kind, url))
 
     new InteractiveSessionYarn(id, client, process, createInteractiveRequest)
   }

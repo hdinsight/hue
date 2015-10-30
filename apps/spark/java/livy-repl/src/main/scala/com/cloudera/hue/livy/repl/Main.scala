@@ -39,6 +39,7 @@ import _root_.scala.concurrent.{Await, ExecutionContext}
 object Main extends Logging {
 
   val SESSION_KIND = "livy.repl.session.kind"
+  val CALLBACK_URL = "livy.repl.callback-url"
   val PYSPARK_SESSION = "pyspark"
   val SPARK_SESSION = "spark"
   val SPARKR_SESSION = "sparkr"
@@ -53,9 +54,10 @@ object Main extends Logging {
       .orElse(sys.env.get("LIVY_PORT"))
       .getOrElse("8999").toInt
 
+    info(s"REPL Port: $port")
 
-    if (args.length != 1) {
-      println("Must specify either `pyspark`/`spark`/`sparkr` for the session kind")
+    if (args.length != 2) {
+      println("Must specify either `pyspark`/`spark`/`sparkr` for the session kind, and provide callback url")
       sys.exit(1)
     }
 
@@ -74,6 +76,7 @@ object Main extends Logging {
     server.context.addEventListener(new ScalatraListener)
     server.context.setInitParameter(ScalatraListener.LifeCycleKey, classOf[ScalatraBootstrap].getCanonicalName)
     server.context.setInitParameter(SESSION_KIND, session_kind)
+    server.context.setInitParameter(CALLBACK_URL, args(1))
 
     server.start()
 
@@ -112,11 +115,10 @@ class ScalatraBootstrap extends LifeCycle with Logging {
 
       context.mount(new WebApp(session), "/*")
 
-      val callbackUrl = Option(System.getProperty("livy.repl.callback-url"))
-        .orElse(sys.env.get("LIVY_CALLBACK_URL"))
+      val callbackUrl = context.getInitParameter(Main.CALLBACK_URL).toString
 
       // See if we want to notify someone that we've started on a url
-      callbackUrl.foreach(notifyCallback)
+      notifyCallback(callbackUrl);
     } catch {
       case e: Throwable =>
         println(f"Exception thrown when initializing server: $e")
