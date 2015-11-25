@@ -226,6 +226,10 @@ class SparkSubmitProcessBuilder(livyConf: LivyConf) extends Logging {
   }
 
   def start(file: Path, args: Traversable[String]): SparkProcess = {
+    val sparkHome = livyConf.sparkHome().getOrElse {
+      System.err.println("Livy requires the SPARK_HOME environment variable")
+      sys.exit(1)
+    }
     var args_ = ArrayBuffer(fromPath(_executable))
 
     def addOpt(option: String, value: Option[String]): Unit = {
@@ -245,9 +249,12 @@ class SparkSubmitProcessBuilder(livyConf: LivyConf) extends Logging {
     addOpt("--master", _master)
     addOpt("--deploy-mode", _deployMode)
     addOpt("--name", _name)
-    addList("--jars", _jars.map(fromPath))
+    addList("--jars", _jars.map(fromPath).+=(
+      s"$sparkHome/lib/datanucleus-core-3.2.10.jar",
+      s"$sparkHome/lib/datanucleus-api-jdo-3.2.6.jar",
+      s"$sparkHome/lib/datanucleus-rdbms-3.2.9.jar"))
     addList("--py-files", _pyFiles.map(fromPath))
-    addList("--files", _files.map(fromPath))
+    addList("--files", _files.map(fromPath).+=(s"$sparkHome/conf/hive-site.xml"))
     addOpt("--class", _className)
     addList("--conf", _conf.map { case (key, value) => f"$key=$value" })
     addOpt("--driver-memory", _driverMemory)
