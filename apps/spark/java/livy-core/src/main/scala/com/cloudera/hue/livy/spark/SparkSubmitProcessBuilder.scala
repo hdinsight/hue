@@ -226,7 +226,7 @@ class SparkSubmitProcessBuilder(livyConf: LivyConf) extends Logging {
   }
 
   def start(file: Path, args: Traversable[String]): SparkProcess = {
-    val sparkHome = livyConf.sparkHome().getOrElse {
+    val sparkHome = "local://" + livyConf.sparkHome().getOrElse {
       System.err.println("Livy requires the SPARK_HOME environment variable")
       sys.exit(1)
     }

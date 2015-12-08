@@ -71,7 +71,7 @@ object InteractiveSessionProcess extends Logging {
     builder.redirectOutput(Redirect.PIPE)
     builder.redirectErrorStream(true)
 
-    builder.start(AbsolutePath(livyJar(livyConf)), List(createInteractiveRequest.kind.toString))
+    builder.start(AbsolutePath("local://" + livyJar(livyConf)), List(createInteractiveRequest.kind.toString))
   }
 
   private def livyJar(conf: LivyConf): String = {

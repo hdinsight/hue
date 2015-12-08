@@ -68,8 +68,7 @@ object InteractiveSessionYarn {
 
     builder.redirectOutput(Redirect.PIPE)
     builder.redirectErrorStream(true)
-
-    val process = builder.start(AbsolutePath(livyJar(livyConf)), List(kind, url))
+    val process = builder.start(AbsolutePath("local://" + livyJar(livyConf)), List(kind, url))
 
     new InteractiveSessionYarn(id, client, process, createInteractiveRequest)
   }
