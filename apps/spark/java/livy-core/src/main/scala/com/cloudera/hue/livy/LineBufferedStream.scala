@@ -63,6 +63,22 @@ class LineBufferedStream(inputStream: InputStream) extends Logging {
     new LinesIterator
   }
 
+  def waitUntilStreamClose() = {
+    trace(">>> waitUntilStreamClose")
+    _lock.lock()
+    try {
+      while (!_finished) {
+        trace(">>> await")
+        _condition.await()
+        trace("<<< await")
+      }
+    }
+    finally {
+      _lock.unlock()
+      trace("<<< waitUntilStreamClose")
+    }
+  }
+
   private class LinesIterator extends Iterator[String] {
     private[this] var index = 0
 
